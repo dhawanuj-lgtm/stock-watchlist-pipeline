@@ -182,7 +182,7 @@ def run(
                 bear_count  = len(score_result.bear_flags),
             )
 
-            # ── Telegram: instant alert on signal flip ────────────────────────
+            # ── Telegram: instant alert on signal flip (flip-only, never on quiet runs) ──
             if signal_result.flipped:
                 send_flip_alert(
                     ticker      = ticker,
@@ -192,6 +192,9 @@ def run(
                     score       = score_result.weighted_score,
                     score_light = score_result.weighted_light,
                     thesis      = thesis,
+                    price       = data.get("price"),
+                    bull_flags  = score_result.bull_flags,
+                    bear_flags  = score_result.bear_flags,
                 )
 
         except Exception as e:
@@ -268,12 +271,14 @@ def run(
         if _orig_user:
             os.environ["GMAIL_USER"] = _orig_user
 
-    # ── Telegram weekly summary ───────────────────────────────────────────────
-    send_weekly_summary(
-        run_date = run_date,
-        group    = group or "all",
-        results  = all_results,
-    )
+    # ── Telegram: summary only when flips occurred ────────────────────────────
+    flipped_results = [r for r in all_results if r["signal_result"].flipped]
+    if flipped_results:
+        send_weekly_summary(
+            run_date = run_date,
+            group    = group or "all",
+            results  = all_results,
+        )
 
     # 8. Save signal cache for tomorrow's flip comparison
     save_cache(signal_cache)

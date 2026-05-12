@@ -66,25 +66,41 @@ def _send(text: str) -> bool:
 # ── Alert types ───────────────────────────────────────────────────────────────
 
 def send_flip_alert(
-    ticker:     str,
-    name:       str,
-    old_signal: str,
-    new_signal: str,
-    score:      float,
-    score_light:str,
-    thesis:     str,
+    ticker:      str,
+    name:        str,
+    old_signal:  str,
+    new_signal:  str,
+    score:       float,
+    score_light: str,
+    thesis:      str,
+    price:       float | None = None,
+    bull_flags:  list[str] | None = None,
+    bear_flags:  list[str] | None = None,
 ) -> bool:
-    """Sent immediately when a signal flips (up or down)."""
+    """Sent ONLY when a signal flips. Includes price, top flags, and thesis."""
     old_em = _SIGNAL_EMOJI.get(old_signal, "⚪")
     new_em = _SIGNAL_EMOJI.get(new_signal, "⚪")
     light  = _LIGHT_EMOJI.get(score_light, "⚪")
-    direction = "📈 Upgraded" if _signal_rank(new_signal) > _signal_rank(old_signal) else "📉 Downgraded"
+    upgraded = _signal_rank(new_signal) > _signal_rank(old_signal)
+    direction = "📈 UPGRADED" if upgraded else "📉 DOWNGRADED"
+
+    price_str = f"  Price: <b>${price:,.2f}</b>\n" if price else ""
+
+    # Top reason (single most important flag)
+    if upgraded and bull_flags:
+        reason = f"\n✅ {bull_flags[0]}"
+    elif not upgraded and bear_flags:
+        reason = f"\n⚠️ {bear_flags[0]}"
+    else:
+        reason = ""
 
     text = (
-        f"<b>⚡ Signal Flip — {ticker}</b>\n"
-        f"{direction}: {old_em} {old_signal} → {new_em} <b>{new_signal}</b>\n"
-        f"{light} Score: <b>{score}/10</b> · {name}\n"
-        f"\n<i>{thesis[:160]}</i>"
+        f"<b>{direction} · {ticker}</b> ({name})\n"
+        f"{old_em} {old_signal}  →  {new_em} <b>{new_signal}</b>\n"
+        f"{price_str}"
+        f"{light} Composite score: <b>{score}/10</b>"
+        f"{reason}\n"
+        f"\n<i>{thesis[:200]}</i>"
     )
     return _send(text)
 

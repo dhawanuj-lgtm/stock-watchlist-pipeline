@@ -108,11 +108,20 @@ def score_ticker(data: dict, thesis: dict) -> TickerScore:
     top_bull = [f for _, f in all_bull[:3]]
     top_bear = [f for _, f in all_bear[:3]]
 
+    # FCF margin for thesis prompt — compute here so it's always available
+    _fcf  = data.get("free_cashflow")
+    _rev  = data.get("total_revenue")
+    _mcap = data.get("market_cap")
+    _fcf_margin = (_fcf / _rev)  if (_fcf is not None and _rev and _rev > 0) else None
+    _fcf_yield  = (_fcf / _mcap) if (_fcf is not None and _mcap and _mcap > 0) else None
+
     thesis_data = {
         "weighted_score":  weighted_score,
         "revenue_growth":  _pct(data.get("revenue_growth_yoy")),
         "gross_margin":    _pct(data.get("gross_margin")),
-        "fcf":             data.get("free_cashflow"),
+        "fcf_margin":      _pct(_fcf_margin),    # FCF ÷ revenue — operational quality
+        "fcf_yield":       _pct(_fcf_yield),     # FCF ÷ market cap — valuation lens
+        "fcf":             _fcf,
         "pe_forward":      data.get("pe_forward"),
         "short_float":     _pct(data.get("short_float_pct")),
         "inst_ownership":  _pct(data.get("inst_ownership_pct")),
@@ -204,19 +213,49 @@ def _score_fundamentals(data: dict, thesis: dict, arch: str) -> CategoryResult:
         elif s <= 3:
             bear.append(f"Gross margin thin at {_pct(gm)} — limited pricing buffer")
 
-    # Free cash flow
-    fcf = data.get("free_cashflow")
+    # Free cash flow — two lenses:
+    #   (a) FCF yield = FCF / market cap  → valuation / return to shareholders
+    #   (b) FCF margin = FCF / revenue     → operational quality / cash conversion
+    # Both matter for long-term thesis; margin catches deterioration before yield does.
+    fcf  = data.get("free_cashflow")
     mcap = data.get("market_cap")
+    rev  = data.get("total_revenue")
+
     if fcf is not None and mcap and mcap > 0:
         fcf_yield = fcf / mcap
         s = _bracket(fcf_yield, [(0.06, 10), (0.03, 8), (0.01, 6), (0, 4)], 1)
         score_parts.append(s)
         if fcf > 0 and s >= 7:
-            bull.append(f"FCF yield {_pct(fcf_yield)} — self-funding growth")
-        elif fcf is not None and fcf < 0:
-            s = 2 if arch in ("spec", "micro") else 1
-            bear.append("Negative free cash flow — burning cash")
-    elif arch in ("spec", "micro"):
+            bull.append(f"FCF yield {_pct(fcf_yield)} — strong cash return vs market cap")
+        elif fcf < 0:
+            s_neg = 2 if arch in ("spec", "micro") else 1
+            score_parts.append(s_neg)
+            bear.append("Negative free cash flow — burning cash; check runway")
+
+    # FCF margin — the quality lens (FCF ÷ revenue)
+    # Positive + rising: durable compounder. Negative: cash destruction.
+    # Read: 15% FCF margin = $0.15 of every $1 revenue becomes free cash.
+    if fcf is not None and rev and rev > 0:
+        fcf_margin = fcf / rev
+        if fcf_margin >= 0.15:
+            s_m = 10
+            bull.append(f"FCF margin {_pct(fcf_margin)} — high-quality cash compounder")
+        elif fcf_margin >= 0.08:
+            s_m = 8
+            bull.append(f"FCF margin {_pct(fcf_margin)} — solid cash conversion")
+        elif fcf_margin >= 0.02:
+            s_m = 6
+        elif fcf_margin >= 0:
+            s_m = 4
+        elif fcf_margin >= -0.10:
+            s_m = 3
+            bear.append(f"FCF margin {_pct(fcf_margin)} — modest cash burn; growth phase expected")
+        else:
+            s_m = 1
+            bear.append(f"FCF margin {_pct(fcf_margin)} — heavy cash burn; check path to breakeven")
+        score_parts.append(s_m)
+
+    elif arch in ("spec", "micro") and fcf is None:
         # Pre-revenue / pre-profit: check cash runway instead
         cash = data.get("total_cash")
         if cash and cash > 0:
