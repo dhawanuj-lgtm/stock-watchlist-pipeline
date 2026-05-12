@@ -38,6 +38,9 @@ class SignalResult:
     flip_direction: str    # "upgraded" | "downgraded" | "none"
     divergence:     str    # insight text when thesis ≠ technical signal
     factors:        dict   # raw indicator values for report
+    current_score:  float = 0.0   # weighted conviction score this run
+    score_delta:    float = 0.0   # change vs previous run (+ = improved)
+    score_trend:    str   = "new" # "up" | "down" | "flat" | "new"
 
 
 # ── Public entry points ───────────────────────────────────────────────────────
@@ -51,9 +54,10 @@ def detect_signal(data: dict, thesis_score: float) -> SignalResult:
     factors = _extract_factors(data)
     signal, subtitle = _classify_signal(factors)
 
-    # Load yesterday's cached signal
+    # Load yesterday's cached signal + score
     cache = _load_cache()
-    previous = cache.get(ticker, {}).get("signal", "UNKNOWN")
+    cached = cache.get(ticker, {})
+    previous = cached.get("signal", "UNKNOWN")
 
     flipped = previous != "UNKNOWN" and previous != signal
     if flipped:
@@ -62,6 +66,20 @@ def detect_signal(data: dict, thesis_score: float) -> SignalResult:
         flip_direction = "upgraded" if curr_rank > prev_rank else "downgraded"
     else:
         flip_direction = "none"
+
+    # Score trend vs last run
+    prev_score = cached.get("score")
+    if prev_score is not None:
+        delta = round(thesis_score - prev_score, 1)
+        if delta > 0.2:
+            score_trend = "up"
+        elif delta < -0.2:
+            score_trend = "down"
+        else:
+            score_trend = "flat"
+    else:
+        delta = 0.0
+        score_trend = "new"
 
     divergence = _build_divergence(
         ticker=ticker,
@@ -82,14 +100,17 @@ def detect_signal(data: dict, thesis_score: float) -> SignalResult:
         flip_direction=flip_direction,
         divergence=divergence,
         factors=factors,
+        current_score=thesis_score,
+        score_delta=delta,
+        score_trend=score_trend,
     )
 
 
 def save_cache(results: dict[str, SignalResult]) -> None:
-    """Persist today's signals for tomorrow's flip comparison."""
+    """Persist today's signals + scores for tomorrow's flip and trend comparison."""
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        ticker: {"signal": r.signal, "subtitle": r.subtitle}
+        ticker: {"signal": r.signal, "subtitle": r.subtitle, "score": r.current_score}
         for ticker, r in results.items()
     }
     with open(CACHE_PATH, "w") as f:

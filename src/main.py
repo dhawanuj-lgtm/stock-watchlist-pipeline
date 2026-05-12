@@ -7,6 +7,7 @@ Run order:
   3. Generate detailed HTML report → public/index.html (GitHub Pages)
   4. Generate + send TLDR email
   5. Save signal cache (for tomorrow's flip detection)
+  6. (Optional) Fetch + score radar_peers and render in report sidebar
 
 Usage:
   python src/main.py                        # run all tickers
@@ -17,8 +18,13 @@ Usage:
 
 Groups:
   owned     → 39 portfolio positions, scheduled Monday 06:00 UTC
-  watchlist → 10 research candidates, scheduled Thursday 06:00 UTC
+  watchlist → 41 research candidates, scheduled Thursday 06:00 UTC
               (auto-skips any ticker that also appears in owned group)
+
+Radar peers:
+  Listed under radar_peers: in watchlist.yaml.
+  Fetched with yfinance-only (same free-tier APIs, no extra cost).
+  Displayed in a compact grid at the top of the report for sector context.
 """
 
 import sys
@@ -49,10 +55,11 @@ log = logging.getLogger(__name__)
 
 # ── Config loaders ────────────────────────────────────────────────────────────
 
-def load_watchlist(path: str = "config/watchlist.yaml") -> list[dict]:
+def load_watchlist(path: str = "config/watchlist.yaml") -> tuple[list[dict], list[dict]]:
+    """Returns (tickers, radar_peers) — both lists of dicts from watchlist.yaml."""
     with open(path) as f:
         cfg = yaml.safe_load(f)
-    return cfg.get("tickers", [])
+    return cfg.get("tickers", []), cfg.get("radar_peers", [])
 
 
 def load_thesis_scores(path: str = "config/thesis_scores.yaml") -> dict:
@@ -99,7 +106,7 @@ def run(
     run_date = datetime.utcnow().strftime("%A %d %b %Y, %H:%M UTC")
     log.info(f"=== Watchlist pipeline starting — {run_date} ===")
 
-    watchlist    = load_watchlist()
+    watchlist, radar_peers_cfg = load_watchlist()
     thesis_cfg   = load_thesis_scores()
 
     # Filter by group first (owned / watchlist cadence)
@@ -169,10 +176,38 @@ def run(
         log.error("No results — aborting report generation.")
         return
 
-    log.info(f"\n=== Generating outputs ({len(all_results)} tickers) ===")
+    # ── Radar peers (lightweight, yfinance-only; errors are non-fatal) ────────
+    radar_results: list[dict] = []
+    if radar_peers_cfg:
+        # Only show peers whose tickers are not already in the main run
+        main_tickers = {r["ticker"] for r in all_results}
+        log.info(f"\n=== Fetching {len(radar_peers_cfg)} radar peers ===")
+        for peer in radar_peers_cfg:
+            pticker = peer["ticker"]
+            if pticker in main_tickers:
+                continue   # skip dupes
+            try:
+                pdata = fetch_ticker(pticker, peer.get("archetype", "largeg"))
+                t_cfg = thesis_cfg.get(pticker, {})
+                pscore = score_ticker(pdata, t_cfg)
+                psig   = detect_signal(pdata, pscore.weighted_score)
+                radar_results.append({
+                    "ticker":       pticker,
+                    "name":         pdata.get("name", pticker),
+                    "archetype":    peer.get("archetype", "largeg"),
+                    "data":         pdata,
+                    "score_result": pscore,
+                    "signal_result":psig,
+                    "reason":       peer.get("reason", peer.get("sector", "Sector peer")),
+                })
+                log.info(f"  Radar {pticker}: {pscore.weighted_score}/10 [{pscore.weighted_light}]")
+            except Exception as e:
+                log.warning(f"  Radar {pticker} failed (non-fatal): {e}")
+
+    log.info(f"\n=== Generating outputs ({len(all_results)} tickers, {len(radar_results)} radar peers) ===")
 
     # 6. Detailed HTML report → public/index.html
-    generate_report(all_results, run_date)
+    generate_report(all_results, run_date, radar_results=radar_results or None)
     log.info("✓ Detailed report written to public/index.html")
 
     # 7. TLDR email

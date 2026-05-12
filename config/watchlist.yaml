@@ -285,6 +285,8 @@ tickers:
   # ── WATCHLIST ──────────────────────────────────────────────────────────────
   # Runs Thursday. Any ticker also in owned group is auto-skipped.
 
+  # ── Original watchlist ────────────────────────────────────────────────────
+
   - ticker: PLTR
     group: watchlist
     archetype: largeg
@@ -354,3 +356,299 @@ tickers:
     strategy: [speculative]
     sector: Semiconductors — SiC
     notes: Wolfspeed — silicon carbide. Watching restructuring and EV demand recovery.
+
+  # ── Chips / Semiconductors ────────────────────────────────────────────────
+  # (NVDA owned, AMD above)
+
+  - ticker: INTC
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: Semiconductors
+    notes: Intel — restructuring under new CEO. Watching foundry ramp (18A) and x86 market share defense.
+
+  - ticker: TSM
+    group: watchlist
+    archetype: mega
+    strategy: [anchor, growth]
+    sector: Semiconductors — Foundry
+    notes: TSMC — world's leading foundry. Watch N2/N3 yield rates and Arizona fab ramp.
+
+  # ── AI Infrastructure ─────────────────────────────────────────────────────
+  # (NBIS, CRWV, IREN already in owned/watchlist)
+
+  - ticker: DELL
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: AI Infrastructure / Servers
+    notes: Dell — AI server ramp (PowerEdge + NVIDIA partnership). Watch ISG revenue acceleration.
+
+  - ticker: VRT
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: AI Infrastructure / Power
+    notes: Vertiv — power and thermal management for data centers. Direct AI infrastructure capex beneficiary.
+
+  - ticker: HUT
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: AI Infrastructure / Bitcoin Mining
+    notes: Hut 8 — pivoting from BTC mining to AI compute. Watch GPU deployment pace and energy agreements.
+
+  # ── Rare Earths ───────────────────────────────────────────────────────────
+  # (MP Materials already owned)
+
+  - ticker: USAR
+    group: watchlist
+    archetype: micro
+    strategy: [speculative]
+    sector: Materials — Rare Earths
+    notes: US Rare Earths — domestic critical mineral supply chain. Watch permitting progress.
+
+  - ticker: CRML
+    group: watchlist
+    archetype: micro
+    strategy: [speculative]
+    sector: Materials — Rare Earths
+    notes: Critical Metals Corp — rare earth project development. Watch financing and offtake agreements.
+
+  - ticker: TMC
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Materials — Deep Sea Mining
+    notes: The Metals Company — polymetallic nodule deep-sea mining. Watch ISA regulatory progress.
+
+  # ── Critical Minerals ─────────────────────────────────────────────────────
+  # (UAMY, MP, LAC already in portfolio/watchlist)
+
+  - ticker: TMQ
+    group: watchlist
+    archetype: smallg
+    strategy: [speculative]
+    sector: Materials — Critical Minerals
+    notes: Trilogy Metals — Alaska critical mineral project. Watch DOD strategic interest and partner deals.
+
+  # ── Quantum Computing ─────────────────────────────────────────────────────
+  # (IONQ, RGTI already owned)
+
+  - ticker: QBTS
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Quantum Computing
+    notes: D-Wave Quantum — annealing approach for optimization problems. Watch enterprise subscription revenue.
+
+  # ── Energy / Power ────────────────────────────────────────────────────────
+  # (CCJ already owned)
+
+  - ticker: GEV
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: Energy / Power Equipment
+    notes: GE Vernova — power grid and gas turbines for AI data center demand. Watch backlog execution.
+
+  - ticker: BE
+    group: watchlist
+    archetype: smallg
+    strategy: [growth]
+    sector: Energy — Fuel Cells / Clean Power
+    notes: Bloom Energy — solid oxide fuel cells for data center backup power. Watch utility partnerships.
+
+  - ticker: VICR
+    group: watchlist
+    archetype: smallg
+    strategy: [growth]
+    sector: Power Semiconductors
+    notes: Vicor — high-density power conversion for AI servers and EVs. Watch data center design wins.
+
+  - ticker: FCEL
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Energy — Fuel Cells
+    notes: FuelCell Energy — molten carbonate fuel cells. Watch utility contract pipeline and carbon capture projects.
+
+  - ticker: PLUG
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Energy — Hydrogen
+    notes: Plug Power — green hydrogen and fuel cells. Watch cash burn, DOE loan, and electrolyzer revenue.
+
+  # ── Memory ────────────────────────────────────────────────────────────────
+  # (MRAM already owned)
+
+  - ticker: MU
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: Semiconductors — Memory
+    notes: Micron — DRAM and NAND. HBM for AI GPUs is the re-rating catalyst. Watch HBM market share vs SK Hynix.
+
+  - ticker: WDC
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: Semiconductors — Storage / Memory
+    notes: Western Digital — NAND flash and HDDs. Watch enterprise SSD ramp and HDD AI demand.
+
+  - ticker: STX
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: Storage — HDD
+    notes: Seagate — HDD leader for AI data lake storage. Watch nearline HDD demand from hyperscalers.
+
+  - ticker: SNDK
+    group: watchlist
+    archetype: smallg
+    strategy: [growth]
+    sector: Semiconductors — NAND / Flash
+    notes: SanDisk (spun from WDC) — NAND flash. Watch enterprise SSD revenue and client flash market share.
+
+  # ── Space ─────────────────────────────────────────────────────────────────
+  # (RKLB already owned, LUNR already in watchlist)
+
+  - ticker: ASTS
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Space — Satellite Connectivity
+    notes: AST SpaceMobile — direct-to-cell satellite broadband. Watch satellite deployment pace and carrier deals.
+
+  - ticker: PL
+    group: watchlist
+    archetype: smallg
+    strategy: [growth]
+    sector: Space — Earth Observation
+    notes: Planet Labs — daily Earth imaging satellite constellation. Watch government and commercial data revenue.
+
+  - ticker: GILT
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Space — Satellite Services
+    notes: Gilat Satellite Networks — broadband satellite networks. Watch enterprise and government contract growth.
+
+  # ── Drones ────────────────────────────────────────────────────────────────
+  # (KTOS, RCAT already owned)
+
+  - ticker: AVAV
+    group: watchlist
+    archetype: smallg
+    strategy: [growth]
+    sector: Aerospace & Defense — Drones
+    notes: AeroVironment — tactical UAS for military. Watch Switchblade and Puma program orders.
+
+  - ticker: ONDS
+    group: watchlist
+    archetype: micro
+    strategy: [speculative]
+    sector: Aerospace & Defense — Drones
+    notes: Ondas Holdings — drone systems and rail/transit automation. Watch DoD and DHS contract wins.
+
+  - ticker: UMAC
+    group: watchlist
+    archetype: micro
+    strategy: [speculative]
+    sector: Aerospace & Defense — Drones
+    notes: Unusual Machines — American-made drones. Watch DoD blue UAS list inclusion and production ramp.
+
+  # ── Nuclear ───────────────────────────────────────────────────────────────
+  # (CCJ, OKLO, SMR already owned; LEU already in watchlist)
+
+  - ticker: UUUU
+    group: watchlist
+    archetype: smallg
+    strategy: [speculative]
+    sector: Energy — Uranium
+    notes: Energy Fuels — uranium + rare earths (rare dual exposure). Watch production volumes and REE sales.
+
+  - ticker: NNE
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Nuclear Energy
+    notes: Nano Nuclear Energy — micro-reactor and nuclear transport. Watch prototype milestones and licensing.
+
+  # ── Batteries / Energy Storage ────────────────────────────────────────────
+
+  - ticker: FLNC
+    group: watchlist
+    archetype: smallg
+    strategy: [growth]
+    sector: Energy Storage
+    notes: Fluence Energy — AI-driven battery energy storage systems. Watch utility-scale project backlog.
+
+  - ticker: ELVA
+    group: watchlist
+    archetype: micro
+    strategy: [speculative]
+    sector: Energy Storage — Capacitors
+    notes: Electrovaya — lithium-ion batteries for industrial/EV. Watch revenue ramp and customer concentration.
+
+  - ticker: TE
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: Electronics / Connectivity
+    notes: TE Connectivity — connectors for EVs, data centers, and industrial. Watch EV content-per-vehicle growth.
+
+
+# ── RADAR PEERS ───────────────────────────────────────────────────────────────
+# Lightweight sector context — fetched with yfinance only (no extra API cost).
+# These are NOT in your portfolio but show how adjacent sectors are moving.
+# Update reason: field with your current watch thesis.
+# ─────────────────────────────────────────────────────────────────────────────
+
+radar_peers:
+
+  # Mega-cap tech peers (not owned)
+  - ticker: MSFT
+    archetype: mega
+    sector: Technology / Cloud
+    reason: "Mega-cap AI peer — Azure AI adoption vs GOOGL/AMZN AWS"
+
+  - ticker: ASML
+    archetype: mega
+    sector: Semiconductors — Equipment
+    reason: "Lithography monopoly — EUV demand drives all chip fab capex (NVDA/TSM proxy)"
+
+  # AI infrastructure peers
+  - ticker: ARM
+    archetype: largeg
+    sector: Semiconductors — IP
+    reason: "Chip architecture licensor — AI inference edge compute momentum"
+
+  - ticker: ANET
+    archetype: largeg
+    sector: Networking — AI Infrastructure
+    reason: "Arista Networks — AI data center networking switch leader (hyperscaler capex)"
+
+  # Energy / Power peers
+  - ticker: CEG
+    archetype: largeg
+    sector: Nuclear Power Utilities
+    reason: "Constellation Energy — nuclear power for data center PPAs (GOOGL/MSFT deals)"
+
+  - ticker: VST
+    archetype: largeg
+    sector: Power Generation
+    reason: "Vistra Energy — natural gas + nuclear for AI data center power demand"
+
+  # Defense / Aerospace peers
+  - ticker: LMT
+    archetype: mega
+    sector: Aerospace & Defense
+    reason: "Lockheed Martin — defense prime benchmark for KTOS/RCAT/ACHR drone positions"
+
+  # Cloud / AI SaaS peers
+  - ticker: SNOW
+    archetype: largeg
+    sector: Cloud — Data / AI
+    reason: "Snowflake — cloud data platform peer for NOW/PATH enterprise software positions"

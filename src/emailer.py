@@ -104,10 +104,15 @@ def _build_html(all_results: list[dict], run_date: str) -> str:
 
     total       = len(sorted_r)
     flip_count  = _flip_count(sorted_r)
-    green_count = sum(1 for r in sorted_r if r["score_result"].weighted_light == "green")
+    green_r     = [r for r in sorted_r if r["score_result"].weighted_light == "green"]
+    red_r       = [r for r in sorted_r if r["score_result"].weighted_light == "red"]
+    green_count = len(green_r)
     avg_score   = round(sum(r["score_result"].weighted_score for r in sorted_r) / total, 1) if total else 0
     upgraded    = sum(1 for r in sorted_r if r["signal_result"].flip_direction == "upgraded")
     downgraded  = sum(1 for r in sorted_r if r["signal_result"].flip_direction == "downgraded")
+
+    green_names = ", ".join(r["ticker"] for r in green_r)
+    red_names   = ", ".join(r["ticker"] for r in red_r)
 
     rows_html = "\n".join(_row(r, i) for i, r in enumerate(sorted_r))
 
@@ -133,11 +138,12 @@ def _build_html(all_results: list[dict], run_date: str) -> str:
 <!-- Stats bar -->
 <tr><td style="padding:16px 24px;border-bottom:1px solid {C['border']}">
   <table cellpadding="0" cellspacing="0" width="100%"><tr>
-    {_stat_cell(str(green_count), "High conviction", C['green_txt'])}
+    {_stat_cell_named(str(green_count), "High conviction", C['green_txt'], green_names)}
     {_stat_cell(str(flip_count),  "Signal flips",    C['flip_txt'])}
     {_stat_cell("↑ " + str(upgraded),   "Upgraded",  "#28a745")}
     {_stat_cell("↓ " + str(downgraded), "Downgraded","#dc3545")}
     {_stat_cell(str(avg_score),  "Avg score",        "#212529")}
+    {_stat_cell_named(str(len(red_r)), "Caution", C['red_txt'], red_names) if red_r else ""}
   </tr></table>
 </td></tr>
 
@@ -260,6 +266,20 @@ def _stat_cell(value: str, label: str, color: str) -> str:
         f'<td align="center" style="padding:0 12px;border-right:1px solid {C["border"]}">'
         f'<div style="font-size:18px;font-weight:700;color:{color}">{value}</div>'
         f'<div style="font-size:10px;color:{C["gray_txt"]}">{label}</div></td>'
+    )
+
+
+def _stat_cell_named(value: str, label: str, color: str, names: str) -> str:
+    """Stat cell that shows ticker names below the label."""
+    names_html = (
+        f'<div style="font-size:9px;color:{color};margin-top:3px;max-width:120px;word-break:break-word">{names}</div>'
+        if names else ""
+    )
+    return (
+        f'<td align="center" style="padding:0 12px;border-right:1px solid {C["border"]}">'
+        f'<div style="font-size:18px;font-weight:700;color:{color}">{value}</div>'
+        f'<div style="font-size:10px;color:{C["gray_txt"]}">{label}</div>'
+        f'{names_html}</td>'
     )
 
 

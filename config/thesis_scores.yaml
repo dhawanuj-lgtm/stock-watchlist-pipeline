@@ -618,3 +618,376 @@ WOLF:
   risk: 4
   overall_conviction: 4
   thesis_one_liner: "SiC wafer leader in restructuring — watching balance sheet stabilization and EV demand recovery before entry."
+
+# ── NEW THEMATIC WATCHLIST — added 2026-05 ────────────────────────────────────
+
+# Chips / Semiconductors
+INTC:
+  last_updated: "2026-05-12"
+  fundamentals: 5
+  valuation: 6
+  moat: 6
+  management: 5
+  partnerships: 6
+  macro: 6
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "Intel foundry turnaround under new CEO — 18A node and US onshoring are the bull case; execution risk is high."
+
+TSM:
+  last_updated: "2026-05-12"
+  fundamentals: 9
+  valuation: 7
+  moat: 10
+  management: 9
+  partnerships: 10
+  macro: 7
+  risk: 6
+  overall_conviction: 8
+  thesis_one_liner: "TSMC is the irreplaceable chokepoint in global chip supply — geopolitical risk is real but so is the moat."
+
+# AI Infrastructure
+DELL:
+  last_updated: "2026-05-12"
+  fundamentals: 7
+  valuation: 6
+  moat: 5
+  management: 7
+  partnerships: 8
+  macro: 7
+  risk: 6
+  overall_conviction: 6
+  thesis_one_liner: "Dell ISG is the AI server pick-and-shovel play alongside NVDA — watch infrastructure services attach rate."
+
+VRT:
+  last_updated: "2026-05-12"
+  fundamentals: 7
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 8
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "Vertiv powers the AI data center buildout — thermal management is a structural bottleneck they solve."
+
+HUT:
+  last_updated: "2026-05-12"
+  fundamentals: 3
+  valuation: null
+  moat: 3
+  management: 5
+  partnerships: 4
+  macro: 5
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "Hut 8 AI compute pivot — execution on GPU revenue diversification is the only metric worth watching."
+
+# Rare Earths
+USAR:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 4
+  management: 4
+  partnerships: 3
+  macro: 7
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "US Rare Earths — domestic REE supply chain bet; permitting and financing are the critical path."
+
+CRML:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 4
+  management: 4
+  partnerships: 3
+  macro: 7
+  risk: 4
+  overall_conviction: 3
+  thesis_one_liner: "Critical Metals Corp — early-stage rare earth developer; high binary risk on project financing."
+
+TMC:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 5
+  partnerships: 5
+  macro: 6
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "The Metals Company — deep-sea nodule mining; ISA regulatory outcome is the entire binary catalyst."
+
+# Critical Minerals
+TMQ:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 4
+  management: 5
+  partnerships: 4
+  macro: 7
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "Trilogy Metals — Alaska critical minerals; DOD strategic interest and partner agreement are key catalysts."
+
+# Quantum Computing
+QBTS:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 6
+  partnerships: 5
+  macro: 7
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "D-Wave annealing quantum for optimization problems — enterprise subscription revenue is the near-term signal."
+
+# Energy / Power
+GEV:
+  last_updated: "2026-05-12"
+  fundamentals: 7
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 8
+  risk: 5
+  overall_conviction: 7
+  thesis_one_liner: "GE Vernova powers the AI energy demand surge — gas turbine and grid backlog execution is the thesis."
+
+BE:
+  last_updated: "2026-05-12"
+  fundamentals: 5
+  valuation: 5
+  moat: 6
+  management: 6
+  partnerships: 6
+  macro: 7
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "Bloom Energy solid oxide fuel cells for data center backup power — watch utility partnership revenue."
+
+VICR:
+  last_updated: "2026-05-12"
+  fundamentals: 6
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 6
+  macro: 7
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "Vicor high-density power conversion — AI server and EV design wins are the revenue inflection signal."
+
+FCEL:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 4
+  management: 5
+  partnerships: 5
+  macro: 6
+  risk: 4
+  overall_conviction: 3
+  thesis_one_liner: "FuelCell Energy — utility contract pipeline and carbon capture projects; balance sheet risk is high."
+
+PLUG:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 4
+  management: 4
+  partnerships: 5
+  macro: 6
+  risk: 3
+  overall_conviction: 3
+  thesis_one_liner: "Plug Power green hydrogen — DOE loan and electrolyzer revenue are survival metrics; speculative only."
+
+# Memory
+MU:
+  last_updated: "2026-05-12"
+  fundamentals: 7
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 7
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "Micron HBM for AI GPUs is the re-rating story — watch HBM market share capture vs SK Hynix."
+
+WDC:
+  last_updated: "2026-05-12"
+  fundamentals: 6
+  valuation: 6
+  moat: 6
+  management: 6
+  partnerships: 6
+  macro: 6
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "Western Digital NAND + HDD — enterprise SSD and AI data lake HDD demand are the dual growth vectors."
+
+STX:
+  last_updated: "2026-05-12"
+  fundamentals: 7
+  valuation: 6
+  moat: 6
+  management: 7
+  partnerships: 6
+  macro: 7
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "Seagate nearline HDD for hyperscaler AI data lake storage — watch exabyte shipment growth."
+
+SNDK:
+  last_updated: "2026-05-12"
+  fundamentals: 5
+  valuation: 5
+  moat: 6
+  management: 6
+  partnerships: 5
+  macro: 6
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "SanDisk NAND flash post-WDC spin-off — watch enterprise SSD revenue and client flash market positioning."
+
+# Space
+ASTS:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 7
+  management: 6
+  partnerships: 8
+  macro: 7
+  risk: 4
+  overall_conviction: 6
+  thesis_one_liner: "AST SpaceMobile direct-to-cell — AT&T and Verizon partnerships validate the model; satellite deployment pace is the key metric."
+
+PL:
+  last_updated: "2026-05-12"
+  fundamentals: 4
+  valuation: null
+  moat: 6
+  management: 6
+  partnerships: 6
+  macro: 6
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "Planet Labs daily Earth imaging — government and commercial geospatial data revenue is the compounding story."
+
+GILT:
+  last_updated: "2026-05-12"
+  fundamentals: 4
+  valuation: 5
+  moat: 5
+  management: 5
+  partnerships: 5
+  macro: 6
+  risk: 5
+  overall_conviction: 4
+  thesis_one_liner: "Gilat Satellite broadband networks — enterprise and government connectivity contract growth is the thesis."
+
+# Drones
+AVAV:
+  last_updated: "2026-05-12"
+  fundamentals: 6
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 8
+  risk: 5
+  overall_conviction: 7
+  thesis_one_liner: "AeroVironment tactical UAS — Switchblade and Puma program orders are the near-term revenue signal."
+
+ONDS:
+  last_updated: "2026-05-12"
+  fundamentals: 3
+  valuation: null
+  moat: 4
+  management: 5
+  partnerships: 5
+  macro: 7
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "Ondas Holdings drone systems + rail automation — DoD/DHS contract wins are the binary catalysts."
+
+UMAC:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 4
+  management: 5
+  partnerships: 4
+  macro: 7
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "Unusual Machines US-made drones — blue UAS list approval and DoD production orders are the pivots."
+
+# Nuclear
+UUUU:
+  last_updated: "2026-05-12"
+  fundamentals: 5
+  valuation: 5
+  moat: 6
+  management: 6
+  partnerships: 5
+  macro: 7
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "Energy Fuels rare uranium + REE dual exposure — production volume and REE contract sales are key metrics."
+
+NNE:
+  last_updated: "2026-05-12"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 5
+  partnerships: 4
+  macro: 8
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "Nano Nuclear — micro-reactor and transport; watch NRC licensing and prototype development milestones."
+
+# Batteries / Energy Storage
+FLNC:
+  last_updated: "2026-05-12"
+  fundamentals: 5
+  valuation: 5
+  moat: 6
+  management: 6
+  partnerships: 6
+  macro: 7
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "Fluence AI-driven BESS — utility-scale project backlog and software attach rate are the thesis metrics."
+
+ELVA:
+  last_updated: "2026-05-12"
+  fundamentals: 3
+  valuation: null
+  moat: 4
+  management: 5
+  partnerships: 4
+  macro: 6
+  risk: 4
+  overall_conviction: 3
+  thesis_one_liner: "Electrovaya industrial lithium-ion — revenue ramp and customer concentration are the key watch items."
+
+TE:
+  last_updated: "2026-05-12"
+  fundamentals: 7
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 7
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "TE Connectivity — connector content per EV and AI server design wins are the dual structural growth vectors."
