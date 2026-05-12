@@ -330,10 +330,9 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         bar_color = dot_color
         bar_w = int(cat_result.score * 10)
 
-        # Build the expanded body: neutral factors + per-cat bull/bear flags
+        # Build the expanded body: per-cat bull/bear flags only
+        # (cat_result.factors are float sub-scores, not human-readable text)
         body_lines = ""
-        for f in (cat_result.factors or []):
-            body_lines += f'<div class="cat-factor">{f}</div>'
         for f in (cat_result.flags_bull or []):
             body_lines += f'<div class="cat-flag-bull">{f}</div>'
         for f in (cat_result.flags_bear or []):
