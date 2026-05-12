@@ -161,8 +161,25 @@ def generate_report(
   @media (max-width: 640px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
   .section-title {{ font-size: .7rem; font-weight: 600; text-transform: uppercase;
                     letter-spacing: .07em; color: #6c757d; margin-bottom: .6rem; }}
-  .cat-grid {{ display: flex; flex-direction: column; gap: 5px; }}
-  .cat-row  {{ display: flex; align-items: center; gap: 8px; font-size: .8rem; }}
+  .cat-grid {{ display: flex; flex-direction: column; gap: 4px; }}
+  .cat-details {{ border-radius: 6px; overflow: hidden; }}
+  .cat-details summary {{ display: flex; align-items: center; gap: 8px; font-size: .8rem;
+                          cursor: pointer; padding: 4px 5px; border-radius: 6px;
+                          list-style: none; user-select: none; }}
+  .cat-details summary::-webkit-details-marker {{ display: none; }}
+  .cat-details summary:hover {{ background: #f0f4f8; }}
+  .cat-details[open] summary {{ background: #f0f4f8; border-radius: 6px 6px 0 0; }}
+  .cat-expand-icon {{ font-size: .6rem; color: #adb5bd; margin-left: 2px; }}
+  .cat-details[open] .cat-expand-icon {{ transform: rotate(90deg); display: inline-block; }}
+  .cat-body {{ background: #f8f9fa; border-radius: 0 0 6px 6px;
+               padding: .4rem .6rem .5rem 2rem; font-size: .75rem;
+               border-top: 1px solid #e9ecef; }}
+  .cat-factor {{ color: #495057; line-height: 1.5; padding: 1px 0; }}
+  .cat-factor::before {{ content: "·"; margin-right: .3rem; color: #adb5bd; }}
+  .cat-flag-bull {{ color: #155724; line-height: 1.5; padding: 1px 0; }}
+  .cat-flag-bear {{ color: #721c24; line-height: 1.5; padding: 1px 0; }}
+  .cat-flag-bull::before {{ content: "▲"; margin-right: .3rem; font-size: .65rem; }}
+  .cat-flag-bear::before {{ content: "▼"; margin-right: .3rem; font-size: .65rem; }}
   .cat-dot  {{ font-size: .9rem; flex-shrink: 0; }}
   .cat-name {{ flex: 1; color: #495057; }}
   .cat-score {{ font-weight: 600; min-width: 28px; text-align: right; }}
@@ -302,7 +319,7 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         arrow = "↑" if sig.flip_direction == "upgraded" else "↓"
         flip_html = f'<span class="flip-badge">{arrow} Flipped from {sig.previous}</span>'
 
-    # Category rows
+    # Category rows — expandable <details> showing factors per category
     cat_rows = ""
     for cat_id, cat_label in CAT_LABELS.items():
         cat_result = sr.categories.get(cat_id)
@@ -312,13 +329,33 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         dot_color = {"green": "#28a745", "yellow": "#856404", "red": "#dc3545", "gray": "#adb5bd"}[cat_result.light]
         bar_color = dot_color
         bar_w = int(cat_result.score * 10)
+
+        # Build the expanded body: neutral factors + per-cat bull/bear flags
+        body_lines = ""
+        for f in (cat_result.factors or []):
+            body_lines += f'<div class="cat-factor">{f}</div>'
+        for f in (cat_result.flags_bull or []):
+            body_lines += f'<div class="cat-flag-bull">{f}</div>'
+        for f in (cat_result.flags_bear or []):
+            body_lines += f'<div class="cat-flag-bear">{f}</div>'
+
+        cat_body_html = (
+            f'<div class="cat-body">{body_lines}</div>'
+            if body_lines else ""
+        )
+        expand_icon = '<span class="cat-expand-icon">▶</span>' if body_lines else ""
+
         cat_rows += f"""
-    <div class="cat-row">
-      <span class="cat-dot" style="color:{dot_color}">{dot_ch}</span>
-      <span class="cat-name">{cat_label}</span>
-      <div class="cat-bar-wrap"><div class="cat-bar" style="width:{bar_w}%;background:{bar_color}"></div></div>
-      <span class="cat-score" style="color:{dot_color}">{cat_result.score:.1f}</span>
-    </div>"""
+    <details class="cat-details">
+      <summary>
+        <span class="cat-dot" style="color:{dot_color}">{dot_ch}</span>
+        <span class="cat-name">{cat_label}</span>
+        <div class="cat-bar-wrap"><div class="cat-bar" style="width:{bar_w}%;background:{bar_color}"></div></div>
+        <span class="cat-score" style="color:{dot_color}">{cat_result.score:.1f}</span>
+        {expand_icon}
+      </summary>
+      {cat_body_html}
+    </details>"""
 
     # Bull / bear flags
     bull_html = "".join(f'<div class="flag flag-bull">▲ {f}</div>' for f in sr.bull_flags) or '<div class="flag flag-bull" style="opacity:.5">No bull flags detected</div>'
@@ -694,9 +731,10 @@ def _accuracy_section(accuracy_report: dict) -> str:
 
 def _macro_panel(all_results: list[dict]) -> str:
     """
-    Renders compact FRED macro overlay panel.
-    Extracts data from first result's data["macro"] dict.
-    Returns empty string if no macro data available.
+    Renders compact macro overlay panel.
+    Data from FRED (if key set), Alpha Vantage fallback, or yfinance yields.
+    Always renders; shows partial data with source badge.
+    Returns empty string only if result list is empty.
     """
     if not all_results:
         return ""
@@ -708,15 +746,17 @@ def _macro_panel(all_results: list[dict]) -> str:
             macro = m
             break
 
-    if not macro:
-        return ""
-
+    # Render with partial/empty data — show a setup note if no data at all
     ffr      = macro.get("fed_funds_rate")
     cpi      = macro.get("cpi_yoy")
     ten_yr   = macro.get("ten_yr_yield")
     two_yr   = macro.get("two_yr_yield")
     spread   = macro.get("yield_spread_10_2")
     unemp    = macro.get("unemployment")
+    source   = macro.get("_source", "")
+    spread_proxy = macro.get("_spread_proxy", False)
+
+    has_any = any(v is not None for v in [ffr, ten_yr, two_yr, spread, unemp])
 
     def _fmt_rate(v):
         return f"{v:.2f}%" if v is not None else "—"
@@ -748,17 +788,45 @@ def _macro_panel(all_results: list[dict]) -> str:
             regime = ("✓ Accommodative", "#d4edda", "#155724")
         else:
             regime = ("Neutral", "#e2e3e5", "#495057")
+    elif ten_yr is not None and spread is not None:
+        # partial: have yields but no FFR
+        if spread < -0.2:
+            regime = ("Inverted Yield Curve", "#fff3cd", "#856404")
+        elif spread > 0.5:
+            regime = ("Normal Curve", "#d4edda", "#155724")
+        else:
+            regime = ("Flat Curve", "#e2e3e5", "#495057")
+    elif not has_any:
+        regime = ("No data — see setup note ↓", "#e2e3e5", "#6c757d")
     else:
-        regime = ("Data unavailable", "#e2e3e5", "#6c757d")
+        regime = ("Partial data", "#e2e3e5", "#6c757d")
 
     regime_label, regime_bg, regime_fg = regime
 
+    # Data source badge
+    source_badge = ""
+    if source:
+        src_colors = {
+            "FRED":          ("#e8f4f8", "#0077aa"),
+            "Alpha Vantage": ("#f0f0ff", "#5050cc"),
+            "yfinance":      ("#f0fff0", "#228822"),
+        }
+        bg, fg = src_colors.get(source, ("#f8f9fa", "#6c757d"))
+        source_badge = (
+            f'<span style="font-size:.65rem;padding:.15rem .5rem;border-radius:8px;'
+            f'background:{bg};color:{fg};white-space:nowrap">via {source}</span>'
+        )
+
+    # Spread label (note if using 10y–5y proxy)
+    spread_label = "10y−5y Spread*" if spread_proxy else "10y−2y Spread"
+
     items = [
-        ("Fed Funds Rate",  _fmt_rate(ffr),    ffr_color),
-        ("10-Yr Yield",     _fmt_rate(ten_yr),  "#212529"),
-        ("2-Yr Yield",      _fmt_rate(two_yr),  "#212529"),
-        ("10y−2y Spread",   _fmt_rate(spread),  spread_color),
-        ("Unemployment",    _fmt_rate(unemp),   "#212529"),
+        ("Fed Funds Rate", _fmt_rate(ffr),    ffr_color),
+        ("10-Yr Yield",    _fmt_rate(ten_yr),  "#212529"),
+        ("2-Yr Yield",     _fmt_rate(two_yr),  "#212529"),
+        (spread_label,     _fmt_rate(spread),  spread_color),
+        ("Unemployment",   _fmt_rate(unemp),   "#212529"),
+        ("CPI YoY",        _fmt_rate(cpi),     "#212529"),
     ]
 
     items_html = "".join(f"""
@@ -767,13 +835,35 @@ def _macro_panel(all_results: list[dict]) -> str:
       <div class="macro-lbl">{label}</div>
     </div>""" for label, val, color in items)
 
+    # Setup note when no data
+    setup_note = ""
+    if not has_any:
+        setup_note = """
+  <div style="margin-top:.75rem;padding:.6rem .9rem;background:#fff3cd;border:1px solid #ffc107;
+              border-radius:6px;font-size:.75rem;line-height:1.5;color:#856404">
+    <strong>Setup:</strong> Add a free <code>FRED_API_KEY</code> secret to GitHub Actions for full macro data
+    (register free at <a href="https://fred.stlouisfed.org/docs/api/api_key.html" target="_blank"
+    style="color:#856404">fred.stlouisfed.org</a>). Treasury yields are fetched via yfinance as fallback —
+    if you see all dashes, the yfinance fetch may have timed out in the Action. FFR, CPI, and unemployment
+    require a FRED key or <code>ALPHA_VANTAGE_KEY</code>.
+  </div>"""
+    elif spread_proxy:
+        setup_note = """
+  <div style="margin-top:.6rem;font-size:.68rem;color:#adb5bd">
+    * 2yr yield unavailable — spread shown is 10y−5y (directional proxy only).
+    Add free <code>FRED_API_KEY</code> for accurate 2yr series.
+  </div>"""
+
     return f"""
 <div class="macro-panel">
-  <div class="macro-title">🏛 Macro Environment (FRED)</div>
+  <div class="macro-title" style="display:flex;align-items:center;gap:.5rem">
+    🏛 Macro Environment &nbsp;{source_badge}
+  </div>
   <div class="macro-grid">
     {items_html}
     <span class="macro-regime" style="background:{regime_bg};color:{regime_fg}">{regime_label}</span>
   </div>
+  {setup_note}
 </div>"""
 
 

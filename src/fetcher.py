@@ -398,42 +398,100 @@ def _fetch_news_sentiment(ticker: str, company_name: str) -> dict:
 _macro_cache: dict = {}   # module-level cache — FRED doesn't change intraday
 
 def _fetch_macro() -> dict:
+    """
+    Fetch macro data with a three-tier fallback chain:
+      1. FRED API (requires free key at fred.stlouisfed.org → add FRED_API_KEY secret)
+      2. Alpha Vantage economic indicators (free tier, uses ALPHA_VANTAGE_KEY)
+      3. yfinance treasury ETF prices (^TNX 10yr, always works, no key needed)
+    """
     global _macro_cache
     if _macro_cache:
         return _macro_cache
 
-    series = {
-        "fed_funds_rate": "FEDFUNDS",
-        "cpi_yoy":        "CPIAUCSL",
-        "ten_yr_yield":   "DGS10",
-        "two_yr_yield":   "DGS2",
-        "unemployment":   "UNRATE",
-    }
-    result = {}
-    base = "https://api.stlouisfed.org/fred/series/observations"
-    params_base = {
-        "sort_order": "desc",
-        "limit": 2,
-        "file_type": "json",
-    }
+    result: dict = {}
+
+    # ── Tier 1: FRED (most accurate, monthly/daily series) ────────────────────
     if FRED_API_KEY:
-        params_base["api_key"] = FRED_API_KEY
-    else:
-        # FRED public endpoint works without key for a subset of series
-        params_base["api_key"] = "abcdefghijklmnopqrstuvwxyz123456"  # public demo key
+        fred_series = {
+            "fed_funds_rate": "FEDFUNDS",
+            "cpi_yoy":        "CPIAUCSL",
+            "ten_yr_yield":   "DGS10",
+            "two_yr_yield":   "DGS2",
+            "unemployment":   "UNRATE",
+        }
+        base = "https://api.stlouisfed.org/fred/series/observations"
+        for name, series_id in fred_series.items():
+            try:
+                r = requests.get(base, params={
+                    "series_id":  series_id,
+                    "api_key":    FRED_API_KEY,
+                    "sort_order": "desc",
+                    "limit":      2,
+                    "file_type":  "json",
+                }, timeout=8)
+                obs = r.json().get("observations", [])
+                if obs:
+                    val = obs[0]["value"]
+                    result[name] = float(val) if val != "." else None
+            except Exception:
+                result[name] = None
+        result["_source"] = "FRED"
+        log.info("Macro: loaded from FRED")
 
-    for name, series_id in series.items():
+    # ── Tier 2: Alpha Vantage economic indicators (free tier) ─────────────────
+    if ALPHA_VANTAGE_KEY and not result.get("fed_funds_rate"):
+        av_functions = {
+            "fed_funds_rate": "FEDERAL_FUNDS_RATE",
+            "cpi_yoy":        "INFLATION",
+            "unemployment":   "UNEMPLOYMENT",
+        }
+        av_base = "https://www.alphavantage.co/query"
+        for name, func in av_functions.items():
+            if result.get(name):
+                continue
+            try:
+                r = requests.get(av_base, params={
+                    "function": func,
+                    "interval": "monthly",
+                    "apikey":   ALPHA_VANTAGE_KEY,
+                }, timeout=8)
+                data_list = r.json().get("data", [])
+                if data_list:
+                    result[name] = float(data_list[0]["value"])
+            except Exception:
+                pass
+        if not result.get("_source"):
+            result["_source"] = "Alpha Vantage"
+            log.info("Macro: loaded from Alpha Vantage")
+
+    # ── Tier 3: yfinance treasury tickers (always free, no key) ───────────────
+    # ^TNX = CBOE 10-Year Treasury Note Yield Index (actual rate in %)
+    # ^FVX = CBOE 5-Year Treasury Note Yield Index (proxy for short end)
+    yf_map = {
+        "ten_yr_yield": "^TNX",
+        "five_yr_yield": "^FVX",   # internal — used for spread if 2yr unavailable
+    }
+    for field_name, sym in yf_map.items():
+        if result.get(field_name):
+            continue
         try:
-            r = requests.get(base, params={**params_base, "series_id": series_id}, timeout=8)
-            obs = r.json().get("observations", [])
-            if obs:
-                result[name] = float(obs[0]["value"]) if obs[0]["value"] != "." else None
+            hist = yf.Ticker(sym).history(period="5d")
+            if not hist.empty:
+                result[field_name] = round(float(hist["Close"].dropna().iloc[-1]), 2)
         except Exception:
-            result[name] = None
+            pass
 
-    # Yield curve spread
+    if not result.get("_source") and result.get("ten_yr_yield"):
+        result["_source"] = "yfinance"
+        log.info("Macro: loaded from yfinance fallback (yields only)")
+
+    # ── Yield curve spread ────────────────────────────────────────────────────
+    # Prefer 10y–2y; fall back to 10y–5y if 2yr not available
     if result.get("ten_yr_yield") and result.get("two_yr_yield"):
         result["yield_spread_10_2"] = round(result["ten_yr_yield"] - result["two_yr_yield"], 2)
+    elif result.get("ten_yr_yield") and result.get("five_yr_yield"):
+        result["yield_spread_10_2"] = round(result["ten_yr_yield"] - result["five_yr_yield"], 2)
+        result["_spread_proxy"] = True   # flag: spread uses 10y–5y, not 10y–2y
     else:
         result["yield_spread_10_2"] = None
 
