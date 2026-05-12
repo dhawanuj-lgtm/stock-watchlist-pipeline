@@ -19,17 +19,7 @@
 # thesis_one_liner: your own words — overrides the AI-generated one if set
 # ─────────────────────────────────────────────
 
-MSFT:
-  last_updated: "2026-04-30"
-  fundamentals: 9
-  valuation: 7
-  moat: 10
-  management: 9
-  partnerships: 9
-  macro: 8
-  risk: 8
-  overall_conviction: 9
-  thesis_one_liner: "Azure + Copilot flywheel creating durable AI infrastructure moat with best-in-class capital allocation."
+# ── MEGA CAPS ─────────────────────────────────────────────────────────────────
 
 AAPL:
   last_updated: "2026-04-30"
@@ -43,17 +33,29 @@ AAPL:
   overall_conviction: 8
   thesis_one_liner: "Services revenue compounding on 2.2B installed base with buyback engine reducing float 3-4% annually."
 
-NVDA:
+AMZN:
   last_updated: "2026-04-30"
-  fundamentals: 10
-  valuation: 6
+  fundamentals: 9
+  valuation: 7
+  moat: 10
+  management: 9
+  partnerships: 9
+  macro: 8
+  risk: 7
+  overall_conviction: 9
+  thesis_one_liner: "AWS margin flywheel + ads layer now a top-3 ad platform — two durable compounders in one ticker."
+
+GOOGL:
+  last_updated: "2026-04-30"
+  fundamentals: 9
+  valuation: 7
   moat: 9
   management: 9
-  partnerships: 10
-  macro: 8
-  risk: 6
+  partnerships: 9
+  macro: 7
+  risk: 7
   overall_conviction: 9
-  thesis_one_liner: "CUDA ecosystem lock-in makes NVDA the toll booth on the AI infrastructure buildout — still early innings."
+  thesis_one_liner: "Search moat funding the AI infrastructure build — Waymo and Cloud are undervalued optionality."
 
 META:
   last_updated: "2026-04-30"
@@ -66,6 +68,436 @@ META:
   risk: 6
   overall_conviction: 8
   thesis_one_liner: "Ad platform FCF funding the AI infrastructure moat, with Reality Labs as a long-dated option."
+
+NVDA:
+  last_updated: "2026-04-30"
+  fundamentals: 10
+  valuation: 6
+  moat: 9
+  management: 9
+  partnerships: 10
+  macro: 8
+  risk: 6
+  overall_conviction: 9
+  thesis_one_liner: "CUDA ecosystem lock-in makes NVDA the toll booth on the AI infrastructure buildout — still early innings."
+
+NOW:
+  last_updated: "2026-04-30"
+  fundamentals: 9
+  valuation: 7
+  moat: 9
+  management: 9
+  partnerships: 8
+  macro: 8
+  risk: 7
+  overall_conviction: 9
+  thesis_one_liner: "AI workflow automation moat with best-in-class NRR — Copilot integration accelerating land-and-expand."
+
+# ── LARGE GROWTH ──────────────────────────────────────────────────────────────
+
+BULL:
+  last_updated: "2026-04-30"
+  fundamentals: null  # ETF — not applicable
+  valuation: null
+  moat: null
+  management: null
+  partnerships: null
+  macro: 6
+  risk: 3
+  overall_conviction: 5
+  thesis_one_liner: "Tactical 3x S&P leveraged ETF — not a thesis, a tool. Size accordingly and review weekly."
+
+CCJ:
+  last_updated: "2026-04-30"
+  fundamentals: 7
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 6
+  macro: 8
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "Uranium supercycle plus data center nuclear demand — Cameco is the purest large-cap exposure."
+
+DUOL:
+  last_updated: "2026-04-30"
+  fundamentals: 7
+  valuation: 6
+  moat: 7
+  management: 8
+  partnerships: 6
+  macro: 7
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "Gamified language learning with strong DAU and subscription conversion — AI integration extending moat."
+
+PATH:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 6
+  moat: 6
+  management: 7
+  partnerships: 6
+  macro: 7
+  risk: 6
+  overall_conviction: 6
+  thesis_one_liner: "RPA + agentic AI workflow layer — watch ARR reacceleration as enterprise AI agent adoption picks up."
+
+TOST:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 5
+  moat: 7
+  management: 7
+  partnerships: 6
+  macro: 6
+  risk: 6
+  overall_conviction: 6
+  thesis_one_liner: "Restaurant OS with sticky location economics — path to profitability visible as GPV per location grows."
+
+# ── SMALL GROWTH ──────────────────────────────────────────────────────────────
+
+KTOS:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 8
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "Drone autonomy and low-cost attritable aircraft positioned at the center of DoD modernization spend."
+
+MP:
+  last_updated: "2026-04-30"
+  fundamentals: 5
+  valuation: 5
+  moat: 7
+  management: 6
+  partnerships: 7
+  macro: 8
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "Only US rare earth mine-to-magnet player — DOD contract expansion is the near-term re-rating catalyst."
+
+NBIS:
+  last_updated: "2026-04-30"
+  fundamentals: 4
+  valuation: null
+  moat: 5
+  management: 6
+  partnerships: 5
+  macro: 6
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "European AI cloud infrastructure play — GPU cluster utilization ramp is the key execution metric."
+
+OPEN:
+  last_updated: "2026-04-30"
+  fundamentals: 4
+  valuation: null
+  moat: 4
+  management: 5
+  partnerships: 4
+  macro: 4
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "iBuying model requires rate cuts to work — speculative only with small position and hard stop."
+
+OSCR:
+  last_updated: "2026-04-30"
+  fundamentals: 5
+  valuation: 5
+  moat: 5
+  management: 6
+  partnerships: 5
+  macro: 5
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "ACA marketplace insurer with tech-forward model — MLR control and membership growth are the thesis pivots."
+
+PGY:
+  last_updated: "2026-04-30"
+  fundamentals: 4
+  valuation: null
+  moat: 4
+  management: 5
+  partnerships: 5
+  macro: 5
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "AI credit decisioning network — approval rate volume growth is the signal; regulatory risk is the overhang."
+
+PRCT:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 5
+  moat: 7
+  management: 7
+  partnerships: 6
+  macro: 7
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "Aquabeam robotic BPH surgery with strong procedure volume growth — large urology TAM barely penetrated."
+
+SOFI:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 6
+  moat: 6
+  management: 7
+  partnerships: 5
+  macro: 5
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "Bank charter + tech stack unlocking NIM advantage — member growth and cross-sell are the compounding lever."
+
+XYZ:
+  last_updated: "2026-04-30"
+  fundamentals: 7
+  valuation: 6
+  moat: 7
+  management: 7
+  partnerships: 6
+  macro: 6
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "Cash App MAU compounding + Square ecosystem — Bitcoin strategy is noise; the payments moat is the story."
+
+# ── SPECULATIVE ───────────────────────────────────────────────────────────────
+
+ACHR:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 6
+  management: 7
+  partnerships: 8
+  macro: 6
+  risk: 4
+  overall_conviction: 6
+  thesis_one_liner: null
+
+ALT:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 6
+  partnerships: 5
+  macro: 6
+  risk: 4
+  overall_conviction: 5
+  thesis_one_liner: "Pemvidutide Phase 3 is the binary — GLP-1 differentiation on tolerability vs Novo/Lilly is the bull case."
+
+CIFR:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: null
+  moat: 3
+  management: 5
+  partnerships: 3
+  macro: 5
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "Pure BTC miner — thesis is a BTC price call, not a company call. Size accordingly."
+
+IONQ:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: null
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 7
+  risk: 4
+  overall_conviction: 6
+  thesis_one_liner: null
+
+IREN:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: null
+  moat: 4
+  management: 6
+  partnerships: 5
+  macro: 6
+  risk: 4
+  overall_conviction: 5
+  thesis_one_liner: "Pivoting from BTC mining to AI GPU compute — execution on GPU capacity build is the re-rating trigger."
+
+LAC:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 5
+  partnerships: 5
+  macro: 6
+  risk: 4
+  overall_conviction: 5
+  thesis_one_liner: "Thacker Pass ramp is a long-duration EV bet — lithium price recovery is the macro unlock."
+
+MRAM:
+  last_updated: "2026-04-30"
+  fundamentals: 5
+  valuation: 6
+  moat: 7
+  management: 6
+  partnerships: 6
+  macro: 6
+  risk: 5
+  overall_conviction: 7
+  thesis_one_liner: "Niche MRAM IP in embedded market with confirmed institutional accumulation — asymmetric acquisition target."
+
+OKLO:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 7
+  management: 8
+  partnerships: 7
+  macro: 8
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "Pre-revenue SMR play on nuclear renaissance — regulatory approval is the entire binary catalyst."
+
+RCAT:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: null
+  moat: 5
+  management: 5
+  partnerships: 5
+  macro: 7
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: "Military small drone platform with DoD tail — contract win cadence is the only metric that matters."
+
+RGTI:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 6
+  partnerships: 5
+  macro: 7
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "Superconducting qubit approach with high dilution risk — coherence time milestones are the check-in points."
+
+RKLB:
+  last_updated: "2026-04-30"
+  fundamentals: 4
+  valuation: null
+  moat: 7
+  management: 8
+  partnerships: 7
+  macro: 7
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "Only proven small launch alternative to SpaceX — Neutron development and spacecraft backlog are the value drivers."
+
+SERV:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 6
+  partnerships: 6
+  macro: 6
+  risk: 4
+  overall_conviction: 5
+  thesis_one_liner: "Sidewalk delivery robot pioneer — unit economics and fleet expansion pace are the key watch metrics."
+
+SMR:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 5
+  management: 5
+  partnerships: 6
+  macro: 7
+  risk: 4
+  overall_conviction: 5
+  thesis_one_liner: "NuScale SMR — data center nuclear demand creating new utility partnerships but regulatory path is long."
+
+SOUN:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: null
+  moat: 5
+  management: 6
+  partnerships: 6
+  macro: 6
+  risk: 4
+  overall_conviction: 5
+  thesis_one_liner: "Voice AI platform with auto and restaurant verticals — partnership revenue must scale to justify valuation."
+
+# ── MICRO CAP ─────────────────────────────────────────────────────────────────
+
+BMNR:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 3
+  management: 4
+  partnerships: 3
+  macro: 5
+  risk: 3
+  overall_conviction: 3
+  thesis_one_liner: null  # monitor closely — needs more data before thesis
+
+CMND:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 3
+  management: 4
+  partnerships: 3
+  macro: 5
+  risk: 4
+  overall_conviction: 3
+  thesis_one_liner: null  # watch for revenue inflection before committing to thesis
+
+OPENL:
+  last_updated: "2026-04-30"
+  fundamentals: null
+  valuation: null
+  moat: null
+  management: null
+  partnerships: null
+  macro: null
+  risk: null
+  overall_conviction: 2
+  thesis_one_liner: "Unverified ticker — confirm validity with broker before assigning any thesis or adding size."
+
+OPENW:
+  last_updated: "2026-04-30"
+  fundamentals: null
+  valuation: null
+  moat: null
+  management: null
+  partnerships: null
+  macro: null
+  risk: null
+  overall_conviction: 2
+  thesis_one_liner: "Unverified ticker — confirm validity with broker before assigning any thesis or adding size."
+
+OPENZ:
+  last_updated: "2026-04-30"
+  fundamentals: null
+  valuation: null
+  moat: null
+  management: null
+  partnerships: null
+  macro: null
+  risk: null
+  overall_conviction: 2
+  thesis_one_liner: "Unverified ticker — confirm validity with broker before assigning any thesis or adding size."
+
+# ── WATCHLIST ─────────────────────────────────────────────────────────────────
 
 PLTR:
   last_updated: "2026-04-30"
@@ -91,28 +523,16 @@ APP:
   overall_conviction: 7
   thesis_one_liner: null  # let AI generate
 
-OKLO:
+CRWV:
   last_updated: "2026-04-30"
-  fundamentals: 2
-  valuation: null  # pre-revenue, skip
-  moat: 7
-  management: 8
-  partnerships: 7
-  macro: 8
-  risk: 5
-  overall_conviction: 6
-  thesis_one_liner: "Pre-revenue SMR play on nuclear renaissance — regulatory approval is the entire binary catalyst."
-
-IONQ:
-  last_updated: "2026-04-30"
-  fundamentals: 3
-  valuation: null
-  moat: 7
-  management: 7
+  fundamentals: 4
+  valuation: 3
+  moat: 6
+  management: 6
   partnerships: 7
   macro: 7
-  risk: 4
-  overall_conviction: 6
+  risk: 5
+  overall_conviction: 5
   thesis_one_liner: null
 
 LEU:
@@ -123,18 +543,6 @@ LEU:
   management: 6
   partnerships: 5
   macro: 7
-  risk: 5
-  overall_conviction: 6
-  thesis_one_liner: null
-
-TE:
-  last_updated: "2026-04-30"
-  fundamentals: 5
-  valuation: 6
-  moat: 5
-  management: 5
-  partnerships: 4
-  macro: 6
   risk: 5
   overall_conviction: 6
   thesis_one_liner: null
@@ -151,38 +559,62 @@ UAMY:
   overall_conviction: 4
   thesis_one_liner: "Antimony supply story is macro-driven, not company-specific — treat as speculative theme trade only."
 
-CRWV:
+TSLA:
   last_updated: "2026-04-30"
-  fundamentals: 4
-  valuation: 3
-  moat: 6
-  management: 6
-  partnerships: 7
-  macro: 7
-  risk: 5
-  overall_conviction: 5
-  thesis_one_liner: null
-
-MRAM:
-  last_updated: "2026-04-30"
-  fundamentals: 5
-  valuation: 6
+  fundamentals: 7
+  valuation: 5
   moat: 7
-  management: 6
+  management: 7
   partnerships: 6
   macro: 6
-  risk: 5
-  overall_conviction: 7
-  thesis_one_liner: "Niche MRAM IP in embedded market with confirmed institutional accumulation — asymmetric acquisition target."
+  risk: 6
+  overall_conviction: 6
+  thesis_one_liner: "Watching for FSD monetization and Robotaxi launch clarity — energy storage is the underappreciated segment."
 
-ACHR:
+AMD:
+  last_updated: "2026-04-30"
+  fundamentals: 8
+  valuation: 7
+  moat: 7
+  management: 8
+  partnerships: 7
+  macro: 7
+  risk: 6
+  overall_conviction: 7
+  thesis_one_liner: "MI300 data center adoption vs NVDA is the key battle — CPU + GPU diversification is the structural edge."
+
+SMCI:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 5
+  moat: 5
+  management: 5
+  partnerships: 6
+  macro: 7
+  risk: 4
+  overall_conviction: 5
+  thesis_one_liner: "AI server demand is real but audit overhang and governance concerns require post-resolution confirmation."
+
+LUNR:
   last_updated: "2026-04-30"
   fundamentals: 2
   valuation: null
-  moat: 6
-  management: 7
-  partnerships: 8
+  moat: 5
+  management: 6
+  partnerships: 7
   macro: 6
   risk: 4
-  overall_conviction: 6
-  thesis_one_liner: null
+  overall_conviction: 5
+  thesis_one_liner: "NASA Artemis contract flow is the revenue visibility — lunar infrastructure is a decade-long build."
+
+WOLF:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: null
+  moat: 6
+  management: 5
+  partnerships: 5
+  macro: 6
+  risk: 4
+  overall_conviction: 4
+  thesis_one_liner: "SiC wafer leader in restructuring — watching balance sheet stabilization and EV demand recovery before entry."

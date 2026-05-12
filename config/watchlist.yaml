@@ -1,108 +1,356 @@
-# ─────────────────────────────────────────────
-# Your watchlist. Add or remove tickers freely.
-#
-# archetype options:
-#   mega       — Mega-cap (AAPL, MSFT)          stable moat, FCF, buybacks
-#   largeg     — Large growth (NVDA, META)       revenue trajectory, TAM expansion
-#   smallg     — Small growth (APP, HOOD)        unit economics, Rule of 40
-#   spec       — Speculative (OKLO, IONQ)        cash runway, binary catalysts
-#   micro      — Micro-cap (MRAM, ACHR)          niche moat, partnership proof
-#
-# strategy options (can list multiple):
-#   anchor     — Core long-term hold, low churn
-#   growth     — Growth compounder
-#   speculative — High risk / high reward
-#
-# notes: free-text, shows in the report
-# ─────────────────────────────────────────────
+# ── Stock watchlist ────────────────────────────────────────────────────────────
+# group: owned     → runs Monday   06:00 UTC
+# group: watchlist → runs Thursday 06:00 UTC
+# Archetypes: mega / largeg / smallg / spec / micro
+# NOTE: watchlist group auto-skips any ticker already in the owned group.
+# ──────────────────────────────────────────────────────────────────────────────
 
 tickers:
 
-  # ── Mega-cap anchors ──────────────────────
-  - ticker: MSFT
+  # ── OWNED ─────────────────────────────────────────────────────────────────
+
+  - ticker: AAPL
+    group: owned
     archetype: mega
     strategy: [anchor, growth]
     sector: Technology
-    notes: Cloud + AI platform moat, consistent FCF. Core anchor.
-
-  - ticker: AAPL
-    archetype: mega
-    strategy: [anchor]
-    sector: Technology
-    notes: Services flywheel, brand moat, buyback machine.
-
-  # ── Large growth ──────────────────────────
-  - ticker: NVDA
-    archetype: largeg
-    strategy: [growth]
-    sector: Semiconductors
-    notes: AI infrastructure monopoly. Data center cycle still early.
-
-  - ticker: META
-    archetype: largeg
-    strategy: [growth]
-    sector: Technology
-    notes: Ad platform + AI capex ROI materialising. Undervalued on FCF.
-
-  - ticker: PLTR
-    archetype: largeg
-    strategy: [growth]
-    sector: Software
-    notes: Government + commercial AI platform. Watch institutional accumulation.
-
-  # ── Small growth ──────────────────────────
-  - ticker: APP
-    archetype: smallg
-    strategy: [growth]
-    sector: Software
-    notes: Mobile ad tech. Extraordinary margin expansion. Underfollowed.
-
-  # ── Speculative ───────────────────────────
-  - ticker: OKLO
-    archetype: spec
-    strategy: [speculative]
-    sector: Energy
-    notes: Small modular reactor. Sam Altman chaired. Nuclear policy tailwind.
-
-  - ticker: IONQ
-    archetype: spec
-    strategy: [speculative]
-    sector: Technology
-    notes: Quantum computing pure-play. Gov contracts validating. Binary catalyst-rich.
-
-  - ticker: LEU
-    archetype: spec
-    strategy: [speculative]
-    sector: Energy
-    notes: Uranium enrichment. High short interest squeeze potential.
-
-  - ticker: TE
-    archetype: smallg
-    strategy: [growth, speculative]
-    sector: Materials
-    notes: Battery materials. FVG support holding. Watch short squeeze setup.
-
-  - ticker: UAMY
-    archetype: micro
-    strategy: [speculative]
-    sector: Materials
-    notes: Antimony / critical minerals. Macro theme valid but moat thin.
-
-  - ticker: CRWV
-    archetype: largeg
-    strategy: [growth, speculative]
-    sector: Technology
-    notes: AI cloud infra (CoreWeave). Recent IPO. No FCF yet — watch earnings.
-
-  # ── Micro-cap ─────────────────────────────
-  - ticker: MRAM
-    archetype: micro
-    strategy: [speculative, growth]
-    sector: Semiconductors
-    notes: Magnetoresistive RAM niche. Institutional accumulation confirmed. Acquisition candidate.
+    notes: Core anchor. Watch for AI hardware integration and services margin expansion.
 
   - ticker: ACHR
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Aerospace & Defense
+    notes: Archer Aviation — eVTOL. Binary on FAA certification timeline.
+
+  - ticker: ALT
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Biotechnology
+    notes: Altimmune — GLP-1 pipeline. Watch pemvidutide Phase 3 readouts.
+
+  - ticker: AMZN
+    group: owned
+    archetype: mega
+    strategy: [anchor, growth]
+    sector: Consumer Discretionary / Cloud
+    notes: AWS + ads flywheel. Underappreciated margin expansion story.
+
+  - ticker: BMNR
+    group: owned
     archetype: micro
     strategy: [speculative]
-    sector: Transportation
-    notes: eVTOL / air taxi. United Airlines partnership. Pre-revenue, FAA milestone-driven.
+    sector: Technology
+    notes: Monitor closely — micro cap, high volatility expected.
+
+  - ticker: BULL
+    group: owned
+    archetype: largeg
+    strategy: [growth]
+    sector: ETF
+    notes: Direxion Daily S&P 500 Bull 3X. Tactical position — not a long-term hold.
+
+  - ticker: CCJ
+    group: owned
+    archetype: largeg
+    strategy: [growth]
+    sector: Energy — Uranium
+    notes: Cameco. Uranium supercycle thesis. Watch utility contract signings.
+
+  - ticker: CIFR
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Crypto Mining
+    notes: Cipher Mining — BTC miner. Correlated to BTC price and hash rate economics.
+
+  - ticker: CMND
+    group: owned
+    archetype: micro
+    strategy: [speculative]
+    sector: Technology
+    notes: Small cap. Watch revenue inflection closely.
+
+  - ticker: DUOL
+    group: owned
+    archetype: largeg
+    strategy: [growth]
+    sector: EdTech
+    notes: Duolingo. Strong DAU growth and subscription conversion. AI integration accelerating.
+
+  - ticker: GOOGL
+    group: owned
+    archetype: mega
+    strategy: [anchor, growth]
+    sector: Technology
+    notes: Search moat + cloud + Waymo optionality. Watch AI Overviews monetization.
+
+  - ticker: IONQ
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Quantum Computing
+    notes: IonQ — trapped ion. Watch qubit fidelity milestones and commercial contracts.
+
+  - ticker: IREN
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: AI Infrastructure / Bitcoin Mining
+    notes: IREN Ltd — pivoting to AI compute. Watch GPU capacity build-out pace.
+
+  - ticker: KTOS
+    group: owned
+    archetype: smallg
+    strategy: [growth]
+    sector: Aerospace & Defense
+    notes: Kratos Defense — drones and autonomy. Defense budget tailwind.
+
+  - ticker: LAC
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Materials — Lithium
+    notes: Lithium Americas. Long-duration bet on EV demand. Watch Thacker Pass ramp.
+
+  - ticker: META
+    group: owned
+    archetype: mega
+    strategy: [anchor, growth]
+    sector: Technology
+    notes: Best-in-class ad platform + AI infrastructure. Reality Labs optionality.
+
+  - ticker: MP
+    group: owned
+    archetype: smallg
+    strategy: [growth]
+    sector: Materials — Rare Earth
+    notes: MP Materials. Critical minerals supply chain. Watch DOD contract expansion.
+
+  - ticker: MRAM
+    group: owned
+    archetype: micro
+    strategy: [speculative]
+    sector: Semiconductors
+    notes: Everspin — MRAM. Niche but sticky. Watch DRAM replacement adoption cycle.
+
+  - ticker: NBIS
+    group: owned
+    archetype: smallg
+    strategy: [growth]
+    sector: AI Infrastructure
+    notes: Nebius Group — European AI cloud. Watch GPU cluster utilization rates.
+
+  - ticker: NOW
+    group: owned
+    archetype: mega
+    strategy: [anchor, growth]
+    sector: Enterprise Software
+    notes: ServiceNow. AI workflow automation moat. Best in class retention metrics.
+
+  - ticker: NVDA
+    group: owned
+    archetype: mega
+    strategy: [anchor, growth]
+    sector: Semiconductors
+    notes: AI infrastructure backbone. Watch Blackwell demand, China export restrictions.
+
+  - ticker: OKLO
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Nuclear Energy
+    notes: Oklo — microreactor. Watch NRC licensing progress and data center deals.
+
+  - ticker: OPEN
+    group: owned
+    archetype: smallg
+    strategy: [speculative]
+    sector: Real Estate Technology
+    notes: Opendoor — iBuying. Rate-sensitive. Watch spread margin and inventory turns.
+
+  - ticker: OPENL
+    group: owned
+    archetype: micro
+    strategy: [speculative]
+    sector: Technology
+    notes: Verify ticker validity with broker. Signals may be unreliable if illiquid.
+
+  - ticker: OPENW
+    group: owned
+    archetype: micro
+    strategy: [speculative]
+    sector: Technology
+    notes: Verify ticker validity with broker. Signals may be unreliable if illiquid.
+
+  - ticker: OPENZ
+    group: owned
+    archetype: micro
+    strategy: [speculative]
+    sector: Technology
+    notes: Verify ticker validity with broker. Signals may be unreliable if illiquid.
+
+  - ticker: OSCR
+    group: owned
+    archetype: smallg
+    strategy: [growth]
+    sector: Healthcare / Insurtech
+    notes: Oscar Health — ACA marketplace insurer. Watch MLR and membership growth.
+
+  - ticker: PATH
+    group: owned
+    archetype: largeg
+    strategy: [growth]
+    sector: Enterprise Software
+    notes: UiPath — RPA + AI agents. Watch ARR growth and net revenue retention.
+
+  - ticker: PGY
+    group: owned
+    archetype: smallg
+    strategy: [speculative]
+    sector: Fintech
+    notes: Pagaya Technologies — AI lending. Watch network volume and approval rates.
+
+  - ticker: PRCT
+    group: owned
+    archetype: smallg
+    strategy: [growth]
+    sector: Medical Devices
+    notes: PROCEPT BioRobotics — Aquabeam robotic prostate surgery. Watch procedure volume.
+
+  - ticker: RCAT
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Aerospace & Defense
+    notes: Red Cat Holdings — military drones. Watch DoD contract wins.
+
+  - ticker: RGTI
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Quantum Computing
+    notes: Rigetti Computing — superconducting qubits. Watch coherence time improvements.
+
+  - ticker: RKLB
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Aerospace
+    notes: Rocket Lab — small launch + spacecraft. Watch Neutron development and launch cadence.
+
+  - ticker: SERV
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Robotics
+    notes: Serve Robotics — sidewalk delivery robots. Watch unit economics and fleet expansion.
+
+  - ticker: SMR
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: Nuclear Energy
+    notes: NuScale Power — SMR nuclear. Watch utility partnerships and DOE support.
+
+  - ticker: SOFI
+    group: owned
+    archetype: smallg
+    strategy: [growth]
+    sector: Fintech
+    notes: SoFi Technologies. Watch member growth, net interest margin, bank charter benefits.
+
+  - ticker: SOUN
+    group: owned
+    archetype: spec
+    strategy: [speculative]
+    sector: AI / Voice Technology
+    notes: SoundHound AI — voice AI platform. Watch auto and restaurant verticals.
+
+  - ticker: TOST
+    group: owned
+    archetype: largeg
+    strategy: [growth]
+    sector: Fintech / Restaurant Tech
+    notes: Toast — restaurant OS. Watch location count growth and GPV per location.
+
+  - ticker: XYZ
+    group: owned
+    archetype: smallg
+    strategy: [growth]
+    sector: Fintech
+    notes: Block Inc — Cash App + Square ecosystem. Watch Cash App MAU and Bitcoin strategy.
+
+  # ── WATCHLIST ──────────────────────────────────────────────────────────────
+  # Runs Thursday. Any ticker also in owned group is auto-skipped.
+
+  - ticker: PLTR
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: AI / Defense
+    notes: Palantir — AIP adoption in enterprise and government. Watching for entry point.
+
+  - ticker: APP
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: AdTech / Mobile
+    notes: AppLovin — mobile ad platform with AI engine. Watching valuation after run-up.
+
+  - ticker: CRWV
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: AI Infrastructure
+    notes: CoreWeave — GPU cloud. Watching post-IPO lockup and revenue ramp.
+
+  - ticker: LEU
+    group: watchlist
+    archetype: smallg
+    strategy: [growth]
+    sector: Energy — Uranium Enrichment
+    notes: Centrus Energy — domestic uranium enrichment. Strategic asset for US nuclear fleet.
+
+  - ticker: UAMY
+    group: watchlist
+    archetype: micro
+    strategy: [speculative]
+    sector: Materials — Antimony
+    notes: US Antimony — critical mineral. Watch antimony price and DoD interest.
+
+  - ticker: TSLA
+    group: watchlist
+    archetype: largeg
+    strategy: [growth, speculative]
+    sector: Automotive / Energy / AI
+    notes: Watching for FSD monetization and Robotaxi launch clarity before adding.
+
+  - ticker: AMD
+    group: watchlist
+    archetype: largeg
+    strategy: [growth]
+    sector: Semiconductors
+    notes: AI GPU challenger. Watch MI300 data center adoption vs NVDA.
+
+  - ticker: SMCI
+    group: watchlist
+    archetype: smallg
+    strategy: [speculative]
+    sector: AI Infrastructure
+    notes: Super Micro — AI servers. Watching post-audit resolution and order book.
+
+  - ticker: LUNR
+    group: watchlist
+    archetype: spec
+    strategy: [speculative]
+    sector: Aerospace
+    notes: Intuitive Machines — lunar lander. Watch NASA Artemis contract cadence.
+
+  - ticker: WOLF
+    group: watchlist
+    archetype: smallg
+    strategy: [speculative]
+    sector: Semiconductors — SiC
+    notes: Wolfspeed — silicon carbide. Watching restructuring and EV demand recovery.

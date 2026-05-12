@@ -4,14 +4,21 @@ main.py — Orchestrator entry point.
 Run order:
   1. Load watchlist.yaml + thesis_scores.yaml
   2. For each ticker: fetch → score → signal detect → generate thesis
-  3. Generate detailed HTML report → public/index.html (GitLab Pages)
+  3. Generate detailed HTML report → public/index.html (GitHub Pages)
   4. Generate + send TLDR email
   5. Save signal cache (for tomorrow's flip detection)
 
 Usage:
-  python src/main.py                   # run all tickers
-  python src/main.py --ticker MRAM     # single ticker (debug)
-  python src/main.py --no-email        # skip sending email (dry-run)
+  python src/main.py                        # run all tickers
+  python src/main.py --group owned          # run owned portfolio (Monday cadence)
+  python src/main.py --group watchlist      # run watchlist candidates (Thursday cadence)
+  python src/main.py --ticker MRAM          # single ticker (debug)
+  python src/main.py --no-email             # skip sending email (dry-run)
+
+Groups:
+  owned     → 39 portfolio positions, scheduled Monday 06:00 UTC
+  watchlist → 10 research candidates, scheduled Thursday 06:00 UTC
+              (auto-skips any ticker that also appears in owned group)
 """
 
 import sys
@@ -53,16 +60,54 @@ def load_thesis_scores(path: str = "config/thesis_scores.yaml") -> dict:
         return yaml.safe_load(f) or {}
 
 
+# ── Group filter (owned vs watchlist, with auto-dedup) ────────────────────────
+
+def filter_by_group(watchlist: list[dict], group: str | None) -> list[dict]:
+    """
+    Filter tickers by group ('owned' or 'watchlist').
+    When group='watchlist', auto-skips any ticker that also appears in owned group
+    to prevent double-processing and stay within free API rate limits.
+    """
+    if not group:
+        return watchlist
+
+    owned_tickers: set[str] = {
+        w["ticker"] for w in watchlist if w.get("group") == "owned"
+    }
+
+    result = [w for w in watchlist if w.get("group") == group]
+
+    if group == "watchlist":
+        before = len(result)
+        result = [w for w in result if w["ticker"] not in owned_tickers]
+        skipped = before - len(result)
+        if skipped:
+            log.info(
+                f"  Dedup: skipped {skipped} watchlist ticker(s) already in owned group."
+            )
+
+    return result
+
+
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def run(tickers_filter: list[str] | None = None, send: bool = True) -> None:
+def run(
+    tickers_filter: list[str] | None = None,
+    group: str | None = None,
+    send: bool = True,
+) -> None:
     run_date = datetime.utcnow().strftime("%A %d %b %Y, %H:%M UTC")
     log.info(f"=== Watchlist pipeline starting — {run_date} ===")
 
     watchlist    = load_watchlist()
     thesis_cfg   = load_thesis_scores()
 
-    # Filter to specific tickers if requested (debug mode)
+    # Filter by group first (owned / watchlist cadence)
+    if group:
+        watchlist = filter_by_group(watchlist, group)
+        log.info(f"Group '{group}': {len(watchlist)} tickers → {[w['ticker'] for w in watchlist]}")
+
+    # Further filter to specific tickers if requested (debug mode)
     if tickers_filter:
         watchlist = [w for w in watchlist if w["ticker"] in tickers_filter]
         log.info(f"Filtered to: {[w['ticker'] for w in watchlist]}")
@@ -161,11 +206,17 @@ def run(tickers_filter: list[str] | None = None, send: bool = True) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Stock watchlist pipeline")
+    parser.add_argument(
+        "--group",
+        choices=["owned", "watchlist"],
+        help="Run only this group: 'owned' (Monday) or 'watchlist' (Thursday)",
+    )
     parser.add_argument("--ticker",   nargs="+", help="Run for specific tickers only (debug)")
     parser.add_argument("--no-email", action="store_true", help="Skip sending email")
     args = parser.parse_args()
 
     run(
         tickers_filter=args.ticker,
+        group=args.group,
         send=not args.no_email,
     )
