@@ -1,0 +1,48 @@
+# ── Your watchlist — stocks you're researching ───────────────────────────────
+# One ticker per line. Runs every THURSDAY 06:00 UTC.
+# Any ticker that's also in owned.txt is automatically skipped.
+#
+# Format:   TICKER [archetype]
+# Archetype is OPTIONAL — auto-detected from market cap if omitted.
+# ─────────────────────────────────────────────────────────────────────────────
+
+AMD         largeg
+APP         largeg
+ASTS        spec
+AVAV        smallg
+BE          smallg
+CRML        spec
+CRWV        spec
+DELL        largeg
+ELVA        spec
+FCEL        spec
+FLNC        spec
+GEV         largeg
+GILT        spec
+HUT         spec
+INTC        largeg
+LEU         smallg
+LUNR        spec
+MU          largeg
+NNE         spec
+ONDS        spec
+PL          spec
+PLTR        largeg
+PLUG        spec
+QBTS        spec
+SMCI        smallg
+SNDK        smallg
+STX         largeg
+TE          spec
+TMC         spec
+TMQ         spec
+TSLA        mega
+TSM         mega
+UAMY        micro
+UMAC        spec
+USAR        spec
+UUUU        smallg
+VICR        smallg
+VRT         largeg
+WDC         largeg
+WOLF        smallg

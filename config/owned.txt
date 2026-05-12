@@ -1,0 +1,48 @@
+# ── Your portfolio — stocks you own ──────────────────────────────────────────
+# One ticker per line. Runs every MONDAY 06:00 UTC.
+#
+# Format:   TICKER [archetype]
+# Archetype is OPTIONAL — leave blank and it's auto-detected from market cap.
+# Archetypes: mega  largeg  smallg  spec  micro
+#
+# To add a stock:    just add a new line with the ticker
+# To remove a stock: delete or comment out the line (add # at the start)
+# Changes take effect on the next Monday run (or trigger manually via GitHub Actions)
+# ─────────────────────────────────────────────────────────────────────────────
+
+AAPL        mega
+ACHR        spec
+ALT         spec
+AMZN        mega
+BMNR        micro
+BULL        largeg
+CCJ         largeg
+CIFR        spec
+CMND        spec
+DUOL        largeg
+GOOGL       mega
+IONQ        spec
+IREN        spec
+KTOS        smallg
+LAC         smallg
+META        mega
+MP          smallg
+MRAM        micro
+NBIS        smallg
+NOW         largeg
+NVDA        mega
+OKLO        spec
+OPEN        spec
+OSCR        smallg
+PATH        smallg
+PGY         spec
+PRCT        smallg
+RCAT        spec
+RGTI        spec
+RKLB        spec
+SERV        spec
+SMR         spec
+SOFI        smallg
+SOUN        spec
+TOST        smallg
+XYZ         spec

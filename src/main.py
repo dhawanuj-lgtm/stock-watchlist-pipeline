@@ -60,10 +60,69 @@ log = logging.getLogger(__name__)
 # ── Config loaders ────────────────────────────────────────────────────────────
 
 def load_watchlist(path: str = "config/watchlist.yaml") -> tuple[list[dict], list[dict]]:
-    """Returns (tickers, radar_peers) — both lists of dicts from watchlist.yaml."""
+    """
+    Load tickers from simple text files (preferred) or YAML (fallback).
+
+    Text files (config/owned.txt + config/watchlist.txt) are the easy way to edit:
+      - One ticker per line
+      - Optional archetype after the ticker: NVDA mega
+      - Lines starting with # are comments
+      - Archetype auto-detected from market cap if omitted
+
+    YAML (config/watchlist.yaml) is still supported as fallback.
+    """
+    from pathlib import Path
+    owned_txt     = Path("config/owned.txt")
+    watchlist_txt = Path("config/watchlist.txt")
+
+    if owned_txt.exists() or watchlist_txt.exists():
+        tickers = []
+        if owned_txt.exists():
+            tickers += _parse_txt(owned_txt, group="owned")
+            log.info(f"Loaded {sum(1 for t in tickers if t['group']=='owned')} owned tickers from owned.txt")
+        if watchlist_txt.exists():
+            tickers += _parse_txt(watchlist_txt, group="watchlist")
+            log.info(f"Loaded {sum(1 for t in tickers if t['group']=='watchlist')} watchlist tickers from watchlist.txt")
+        # Radar peers still come from YAML if it exists
+        radar_peers = []
+        if Path(path).exists():
+            with open(path) as f:
+                cfg = yaml.safe_load(f) or {}
+            radar_peers = cfg.get("radar_peers", [])
+        return tickers, radar_peers
+
+    # Fallback: original YAML format
+    log.info("Using config/watchlist.yaml (txt files not found)")
     with open(path) as f:
         cfg = yaml.safe_load(f)
     return cfg.get("tickers", []), cfg.get("radar_peers", [])
+
+
+def _parse_txt(path, group: str) -> list[dict]:
+    """
+    Parse a simple text file of tickers.
+    Format per line:  TICKER [archetype]  # optional comment
+    Archetype defaults to 'auto' — detected from market cap during fetch.
+    """
+    _VALID_ARCHETYPES = {"mega", "largeg", "smallg", "spec", "micro"}
+    tickers = []
+    with open(path) as f:
+        for raw_line in f:
+            line = raw_line.split("#")[0].strip()  # strip comments
+            if not line:
+                continue
+            parts = line.split()
+            ticker = parts[0].upper()
+            arch   = parts[1].lower() if len(parts) > 1 and parts[1].lower() in _VALID_ARCHETYPES else "auto"
+            tickers.append({
+                "ticker":    ticker,
+                "group":     group,
+                "archetype": arch,
+                "strategy":  [],
+                "sector":    None,
+                "notes":     "",
+            })
+    return tickers
 
 
 def load_thesis_scores(path: str = "config/thesis_scores.yaml") -> dict:
@@ -136,6 +195,17 @@ def run(
         try:
             # 1. Fetch all data
             data = fetch_ticker(ticker, archetype)
+
+            # Auto-detect archetype from market cap if not specified in txt file
+            if archetype == "auto":
+                mcap = data.get("market_cap") or 0
+                if mcap > 200e9:   archetype = "mega"
+                elif mcap > 10e9:  archetype = "largeg"
+                elif mcap > 1e9:   archetype = "smallg"
+                elif mcap > 100e6: archetype = "spec"
+                else:              archetype = "micro"
+                data["archetype"] = archetype
+                log.info(f"  Auto-archetype: {archetype} (market cap ${mcap/1e9:.1f}B)")
 
             # 2. Get thesis config for this ticker (stable scores)
             t_cfg = thesis_cfg.get(ticker, {})

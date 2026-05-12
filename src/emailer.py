@@ -97,24 +97,65 @@ def send_email(all_results: list[dict], run_date: str) -> None:
         raise
 
 
-# ── HTML builder ──────────────────────────────────────────────────────────────
+# ── HTML builder — concise digest format ─────────────────────────────────────
 
 def _build_html(all_results: list[dict], run_date: str) -> str:
-    sorted_r = sorted(all_results, key=lambda x: x["score_result"].weighted_score, reverse=True)
+    """
+    Synthesised email: ~15 second read.
+    Only three sections: signal flips (expanded), top green picks, cautions.
+    Everything else is in the full report (linked at bottom).
+    """
+    sorted_r   = sorted(all_results, key=lambda x: x["score_result"].weighted_score, reverse=True)
+    total      = len(sorted_r)
+    flips_r    = [r for r in sorted_r if r["signal_result"].flipped]
+    green_r    = [r for r in sorted_r if r["score_result"].weighted_light == "green" and not r["signal_result"].flipped]
+    red_r      = [r for r in sorted_r if r["score_result"].weighted_light == "red"]
+    avg_score  = round(sum(r["score_result"].weighted_score for r in sorted_r) / total, 1) if total else 0
+    upgraded   = sum(1 for r in flips_r if r["signal_result"].flip_direction == "upgraded")
+    downgraded = sum(1 for r in flips_r if r["signal_result"].flip_direction == "downgraded")
 
-    total       = len(sorted_r)
-    flip_count  = _flip_count(sorted_r)
-    green_r     = [r for r in sorted_r if r["score_result"].weighted_light == "green"]
-    red_r       = [r for r in sorted_r if r["score_result"].weighted_light == "red"]
-    green_count = len(green_r)
-    avg_score   = round(sum(r["score_result"].weighted_score for r in sorted_r) / total, 1) if total else 0
-    upgraded    = sum(1 for r in sorted_r if r["signal_result"].flip_direction == "upgraded")
-    downgraded  = sum(1 for r in sorted_r if r["signal_result"].flip_direction == "downgraded")
+    # ── Section: Signal flips (most actionable) ────────────────────────────
+    if flips_r:
+        flip_rows = "\n".join(_flip_row(r) for r in flips_r)
+        flips_section = f"""
+<tr><td style="padding:12px 24px 4px;font-size:11px;font-weight:700;
+               color:{C['flip_txt']};letter-spacing:.05em;border-top:1px solid {C['border']}">
+  ⚡ SIGNAL FLIPS THIS RUN
+</td></tr>
+{flip_rows}"""
+    else:
+        flips_section = f"""
+<tr><td style="padding:12px 24px 12px;font-size:12px;color:{C['gray_txt']};border-top:1px solid {C['border']}">
+  No signal flips this run — all positions holding their signals.
+</td></tr>"""
 
-    green_names = ", ".join(r["ticker"] for r in green_r)
-    red_names   = ", ".join(r["ticker"] for r in red_r)
+    # ── Section: Top green picks (up to 5) ────────────────────────────────
+    top_green = green_r[:5]
+    if top_green:
+        green_rows = "\n".join(_summary_row(r, "green") for r in top_green)
+        remaining = len(green_r) - len(top_green)
+        more_str = f'<tr><td colspan="4" style="padding:4px 24px 12px;font-size:10px;color:{C["gray_txt"]}">+{remaining} more green tickers in full report</td></tr>' if remaining > 0 else ""
+        green_section = f"""
+<tr><td colspan="4" style="padding:12px 24px 4px;font-size:11px;font-weight:700;
+                color:{C['green_txt']};letter-spacing:.05em;border-top:1px solid {C['border']}">
+  🟢 HIGH CONVICTION ({len(green_r)} tickers)
+</td></tr>
+{green_rows}
+{more_str}"""
+    else:
+        green_section = ""
 
-    rows_html = "\n".join(_row(r, i) for i, r in enumerate(sorted_r))
+    # ── Section: Cautions ─────────────────────────────────────────────────
+    if red_r:
+        red_rows = "\n".join(_summary_row(r, "red") for r in red_r)
+        red_section = f"""
+<tr><td colspan="4" style="padding:12px 24px 4px;font-size:11px;font-weight:700;
+               color:{C['red_txt']};letter-spacing:.05em;border-top:1px solid {C['border']}">
+  🔴 CAUTION — REVIEW NEEDED ({len(red_r)} tickers)
+</td></tr>
+{red_rows}"""
+    else:
+        red_section = ""
 
     return f"""<!DOCTYPE html>
 <html>
@@ -123,7 +164,7 @@ def _build_html(all_results: list[dict], run_date: str) -> str:
 
 <table width="100%" cellpadding="0" cellspacing="0" style="background:{C['body_bg']};padding:20px 0">
 <tr><td align="center">
-<table width="680" cellpadding="0" cellspacing="0" style="background:{C['card_bg']};border-radius:12px;overflow:hidden;border:1px solid {C['border']}">
+<table width="620" cellpadding="0" cellspacing="0" style="background:{C['card_bg']};border-radius:12px;overflow:hidden;border:1px solid {C['border']}">
 
 <!-- Header -->
 <tr><td style="background:{C['hdr_bg']};padding:20px 24px;">
@@ -131,55 +172,31 @@ def _build_html(all_results: list[dict], run_date: str) -> str:
     {run_date} &nbsp;·&nbsp; Weekly watchlist digest &nbsp;·&nbsp; Not financial advice
   </p>
   <p style="margin:0;font-size:18px;font-weight:600;color:#fff">
-    Watchlist digest — {total} tickers, {flip_count} signal flip(s)
+    {total} tickers · avg {avg_score}/10 · {len(flips_r)} flip(s)
+    {f"· ↑{upgraded} ↓{downgraded}" if flips_r else ""}
   </p>
 </td></tr>
 
-<!-- Stats bar -->
-<tr><td style="padding:16px 24px;border-bottom:1px solid {C['border']}">
-  <table cellpadding="0" cellspacing="0" width="100%"><tr>
-    {_stat_cell_named(str(green_count), "High conviction", C['green_txt'], green_names)}
-    {_stat_cell(str(flip_count),  "Signal flips",    C['flip_txt'])}
-    {_stat_cell("↑ " + str(upgraded),   "Upgraded",  "#28a745")}
-    {_stat_cell("↓ " + str(downgraded), "Downgraded","#dc3545")}
-    {_stat_cell(str(avg_score),  "Avg score",        "#212529")}
-    {_stat_cell_named(str(len(red_r)), "Caution", C['red_txt'], red_names) if red_r else ""}
-  </tr></table>
+<!-- Content -->
+<tr><td>
+<table width="100%" cellpadding="0" cellspacing="0">
+{flips_section}
+{green_section}
+{red_section}
+</table>
 </td></tr>
 
-<!-- Legend -->
-<tr><td style="padding:10px 24px;background:{C['gray_bg']};border-bottom:1px solid {C['border']}">
-  <p style="margin:0;font-size:10px;color:{C['gray_txt']}">
-    <strong>🔒 Thesis score</strong> — stable, updates monthly after earnings &nbsp;&nbsp;
-    <strong>⚡ Tech signal</strong> — updates every run &nbsp;&nbsp;
-    <strong>↕ Flipped</strong> — signal changed since last run
+<!-- CTA footer -->
+<tr><td style="padding:16px 24px;border-top:1px solid {C['border']};text-align:center">
+  <a href="{PAGES_URL}"
+     style="display:inline-block;background:{C['hdr_bg']};color:#fff;
+            text-decoration:none;border-radius:8px;padding:10px 28px;
+            font-size:13px;font-weight:600">
+    View full report with charts &amp; metrics →
+  </a>
+  <p style="margin:10px 0 0;font-size:10px;color:{C['gray_txt']}">
+    Data: yfinance · FRED · SEC EDGAR (all free tier)
   </p>
-</td></tr>
-
-<!-- Column headers -->
-<tr style="background:{C['gray_bg']}">
-  <td style="padding:8px 24px;font-size:10px;font-weight:600;color:{C['gray_txt']};width:130px">TICKER</td>
-  <td style="padding:8px 8px;font-size:10px;font-weight:600;color:{C['gray_txt']};width:75px">PRICE</td>
-  <td style="padding:8px 8px;font-size:10px;font-weight:600;color:{C['gray_txt']};width:85px">🔒 THESIS</td>
-  <td style="padding:8px 8px;font-size:10px;font-weight:600;color:{C['gray_txt']};width:100px">⚡ SIGNAL</td>
-  <td style="padding:8px 8px;font-size:10px;font-weight:600;color:{C['gray_txt']};width:90px">VS YESTERDAY</td>
-  <td style="padding:8px 8px;font-size:10px;font-weight:600;color:{C['gray_txt']}">DIVERGENCE INSIGHT</td>
-</tr>
-
-{rows_html}
-
-<!-- Footer -->
-<tr><td style="padding:16px 24px;border-top:1px solid {C['border']}">
-  <table cellpadding="0" cellspacing="0" width="100%"><tr>
-    <td style="font-size:11px;color:{C['gray_txt']}">
-      Data: yfinance · NewsAPI · FRED · SEC EDGAR (all free tier)
-    </td>
-    <td align="right">
-      <a href="{PAGES_URL}" style="font-size:11px;color:{C['link']};text-decoration:none">
-        View full report →
-      </a>
-    </td>
-  </tr></table>
 </td></tr>
 
 </table>
@@ -187,6 +204,65 @@ def _build_html(all_results: list[dict], run_date: str) -> str:
 </table>
 </body>
 </html>"""
+
+
+def _flip_row(r: dict) -> str:
+    """Expanded row for signal flip — shows old→new signal, score, top reason."""
+    sr   = r["score_result"]
+    sig  = r["signal_result"]
+    data = r["data"]
+    price = data.get("price")
+    price_str = f"${price:.2f}" if price else "—"
+
+    sig_bg, sig_txt = SIGNAL_COLOR.get(sig.signal, ("#6c757d", "#fff"))
+    old_sig_bg, _ = SIGNAL_COLOR.get(sig.previous or "—", ("#6c757d", "#fff"))
+    light_bg, light_txt, dot = LIGHT_COLOR.get(sr.weighted_light, LIGHT_COLOR["gray"])
+    arrow = "↑" if sig.flip_direction == "upgraded" else "↓"
+    top_reason = sr.bull_flags[0] if sig.flip_direction == "upgraded" and sr.bull_flags else \
+                 (sr.bear_flags[0] if sr.bear_flags else sig.divergence or "")
+
+    return f"""<tr><td style="padding:8px 24px 10px;border-bottom:1px solid {C['border']}">
+  <table cellpadding="0" cellspacing="0" width="100%"><tr>
+    <td style="width:70px;font-size:13px;font-weight:700">{r['ticker']}</td>
+    <td style="width:60px;font-size:12px;color:#6c757d">{price_str}</td>
+    <td style="padding:0 8px">
+      <span style="background:{old_sig_bg};opacity:.5;color:#fff;border-radius:4px;padding:2px 6px;font-size:10px">{sig.previous or "—"}</span>
+      &nbsp;{arrow}&nbsp;
+      <span style="background:{sig_bg};color:{sig_txt};border-radius:4px;padding:2px 6px;font-size:10px;font-weight:700">{sig.signal}</span>
+    </td>
+    <td align="right" style="width:60px">
+      <span style="background:{light_bg};color:{light_txt};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600">{dot} {sr.weighted_score}/10</span>
+    </td>
+  </tr>
+  {"" if not top_reason else f'<tr><td colspan="4" style="padding:3px 0 0;font-size:11px;color:#6c757d">{top_reason[:120]}</td></tr>'}
+  </table>
+</td></tr>"""
+
+
+def _summary_row(r: dict, light: str) -> str:
+    """One-line summary row for green/red tickers — ticker, price, score, top flag."""
+    sr   = r["score_result"]
+    sig  = r["signal_result"]
+    data = r["data"]
+    price = data.get("price")
+    price_str = f"${price:.2f}" if price else "—"
+
+    light_bg, light_txt, dot = LIGHT_COLOR.get(light, LIGHT_COLOR["gray"])
+    sig_bg, sig_txt = SIGNAL_COLOR.get(sig.signal, ("#6c757d", "#fff"))
+    top_flag = sr.bull_flags[0] if light == "green" and sr.bull_flags else \
+               (sr.bear_flags[0] if light == "red" and sr.bear_flags else "")
+
+    return f"""<tr style="border-bottom:1px solid {C['border']}">
+  <td style="padding:7px 24px;width:65px;font-size:12px;font-weight:700">{r['ticker']}</td>
+  <td style="padding:7px 4px;width:60px;font-size:12px;color:#444">{price_str}</td>
+  <td style="padding:7px 4px">
+    <span style="background:{sig_bg};color:{sig_txt};border-radius:4px;padding:2px 6px;font-size:10px">{sig.signal}</span>
+    {"" if not top_flag else f'<span style="font-size:10px;color:#6c757d;margin-left:6px">{top_flag[:80]}</span>'}
+  </td>
+  <td style="padding:7px 8px;width:55px;text-align:right">
+    <span style="background:{light_bg};color:{light_txt};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600">{dot} {sr.weighted_score}/10</span>
+  </td>
+</tr>"""
 
 
 def _row(r: dict, idx: int) -> str:
@@ -237,11 +313,14 @@ def _row(r: dict, idx: int) -> str:
     price = data.get("price")
     change = data.get("price_change_1d_pct")
     chg_color = "#28a745" if change and change > 0 else "#dc3545"
-    chg_str = (f'+{change*100:.2f}%' if change and change > 0 else f'{change*100:.2f}%') if change else "—"
-    price_html = (
-        f'<strong style="font-size:12px">${price:.2f}</strong>' if price else "—"
-        f'<br><span style="color:{chg_color};font-size:11px">{chg_str}</span>'
-    )
+    chg_str = (f'+{change*100:.2f}%' if change > 0 else f'{change*100:.2f}%') if change else "—"
+    if price:
+        price_html = (
+            f'<strong style="font-size:12px">${price:.2f}</strong>'
+            f'<br><span style="color:{chg_color};font-size:11px">{chg_str}</span>'
+        )
+    else:
+        price_html = "—"
 
     # Ticker cell
     arch_label = ARCHETYPE_LABEL.get(sr.archetype, sr.archetype)

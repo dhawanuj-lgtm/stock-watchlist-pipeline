@@ -340,22 +340,144 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         or data.get("edgar_fcf") and not data.get("free_cashflow")
     ) else ""
 
-    metrics = {
-        "Price":         f"${price:.2f}" if price else "—",
-        "1D Change":     f'<span style="color:{change_color}">{change_str}</span>',
-        "RSI":           str(data.get("rsi_14") or "—"),
-        "Short Float":   f'{data["short_float_pct"]*100:.1f}%' if data.get("short_float_pct") else "—",
-        "Inst. Own":     f'{data["inst_ownership_pct"]*100:.0f}%' if data.get("inst_ownership_pct") else "—",
-        "Fwd P/E":       f'{data["pe_forward"]:.1f}x' if data.get("pe_forward") and data["pe_forward"] > 0 else "—",
-        f"Rev Growth":   f'{data["revenue_growth_yoy"]*100:.1f}%' if data.get("revenue_growth_yoy") else "—",
-        f"Gross Margin{edgar_tag}": gm_str,
-        f"FCF{edgar_tag}":  fcf_str,
-        "Analyst Target":f'${data["analyst_target"]:.2f}' if data.get("analyst_target") else "—",
-        "Earnings":      data.get("earnings_date", "—") or "—",
-    }
+    arch = sr.archetype
+
+    # FCF margin (FCF ÷ revenue) — operational quality lens
+    rev_raw = data.get("total_revenue")
+    fcf_margin_str = "—"
+    if fcf_raw and rev_raw and rev_raw > 0:
+        fcf_margin_pct = fcf_raw / rev_raw * 100
+        fcf_margin_str = f'{fcf_margin_pct:.1f}%'
+
+    # Operating margin
+    op_margin = data.get("operating_margin")
+    op_margin_str = f'{op_margin*100:.1f}%' if op_margin is not None else "—"
+
+    # D/E ratio
+    de = data.get("debt_to_equity")
+    de_str = f'{de:.0f}%' if de is not None else "—"
+
+    # Analyst upside
+    analyst_upside = data.get("analyst_upside")
+
+    # ── Metric color rules (archetype-aware) ─────────────────────────────────
+    # Each tuple: (value, label_override_or_None, color_hint)
+    # color_hint: "green" | "yellow" | "red" | None
+    def _color(hint):
+        return {
+            "green":  "border-bottom:2px solid #28a745",
+            "yellow": "border-bottom:2px solid #ffc107",
+            "red":    "border-bottom:2px solid #dc3545",
+        }.get(hint, "")
+
+    def _rg_hint(rg):      # revenue growth — context-sensitive
+        if rg is None: return None
+        if arch in ("spec", "micro"):
+            return "green" if rg > 0.30 else "yellow" if rg > 0.10 else "red"
+        if arch == "smallg":
+            return "green" if rg > 0.20 else "yellow" if rg > 0.08 else "red"
+        return "green" if rg > 0.12 else "yellow" if rg > 0.04 else "red"  # mega/largeg
+
+    def _pe_hint(pe):
+        if pe is None or pe <= 0: return None
+        return "green" if pe < 18 else "yellow" if pe < 35 else "red"
+
+    def _rsi_hint(rsi):
+        if rsi is None: return None
+        if rsi < 30: return "yellow"   # oversold — not bad, but watch
+        if rsi > 80: return "red"
+        if rsi > 70: return "yellow"
+        return "green"
+
+    def _short_hint(sf):
+        if sf is None: return None
+        return "green" if sf < 0.05 else "yellow" if sf < 0.15 else "red"
+
+    def _inst_hint(io):
+        if io is None: return None
+        return "green" if io > 0.70 else "yellow" if io > 0.40 else "red"
+
+    def _gm_hint(gm):
+        if gm is None: return None
+        return "green" if gm > 0.60 else "yellow" if gm > 0.35 else "red"
+
+    def _fcf_hint(fcf):
+        if fcf is None: return None
+        return "green" if fcf > 0 else "red"
+
+    def _fcfm_hint(fcf, rev):
+        if fcf is None or rev is None or rev == 0: return None
+        m = fcf / rev
+        return "green" if m > 0.12 else "yellow" if m > 0.03 else "red"
+
+    def _opm_hint(opm):
+        if opm is None: return None
+        return "green" if opm > 0.20 else "yellow" if opm > 0.05 else "red"
+
+    def _de_hint(de):
+        if de is None: return None
+        return "green" if de < 50 else "yellow" if de < 150 else "red"
+
+    def _upside_hint(u):
+        if u is None: return None
+        return "green" if u > 0.20 else "yellow" if u > 0.05 else "red"
+
+    rg_raw = data.get("revenue_growth_yoy")
+    rsi_raw = data.get("rsi_14")
+    sf_raw  = data.get("short_float_pct")
+    io_raw  = data.get("inst_ownership_pct")
+    pe_raw  = data.get("pe_forward") if data.get("pe_forward") and data["pe_forward"] > 0 else None
+
+    # (display_value, hint_fn_result, tooltip)
+    metrics_raw = [
+        ("Price",         f"${price:.2f}" if price else "—",
+         None, "Current market price"),
+        ("1D Change",     f'<span style="color:{change_color}">{change_str}</span>',
+         "green" if change and change > 0 else ("red" if change and change < -0.02 else None),
+         "Price change vs prior close"),
+        ("RSI",           str(rsi_raw or "—"),
+         _rsi_hint(rsi_raw),
+         "RSI 14 · <30 oversold, >70 overbought, >80 extended"),
+        ("Short Float",   f'{sf_raw*100:.1f}%' if sf_raw else "—",
+         _short_hint(sf_raw),
+         "% of float sold short · <5% clean, >15% elevated"),
+        ("Inst. Own",     f'{io_raw*100:.0f}%' if io_raw else "—",
+         _inst_hint(io_raw),
+         "Institutional ownership · >70% strong backing"),
+        ("Fwd P/E",       f'{pe_raw:.1f}x' if pe_raw else "—",
+         _pe_hint(pe_raw),
+         "Forward P/E · <18 value, >35 expensive — compare to sector"),
+        ("Rev Growth",    f'{rg_raw*100:.1f}%' if rg_raw else "—",
+         _rg_hint(rg_raw),
+         f"Revenue growth YoY · threshold varies by archetype ({arch})"),
+        (f"Gross Margin{edgar_tag}", gm_str,
+         _gm_hint(gm_raw),
+         "Gross margin · >60% excellent, <35% thin — depends on business model"),
+        ("Op Margin",     op_margin_str,
+         _opm_hint(op_margin),
+         "Operating margin · >20% strong, <5% early-stage"),
+        ("FCF Margin",    fcf_margin_str,
+         _fcfm_hint(fcf_raw, rev_raw),
+         "FCF ÷ Revenue · >12% high-quality compounder, <0% burning cash"),
+        (f"FCF{edgar_tag}", fcf_str,
+         _fcf_hint(fcf_raw),
+         "Free cash flow (absolute) · positive = self-funding"),
+        ("D/E",           de_str,
+         _de_hint(de),
+         "Debt-to-equity · <50% clean, >150% elevated leverage"),
+        ("Analyst Target",f'${data["analyst_target"]:.2f}' if data.get("analyst_target") else "—",
+         _upside_hint(analyst_upside),
+         f'Consensus price target · {f"+{analyst_upside*100:.0f}% upside" if analyst_upside else ""}'),
+        ("Earnings",      data.get("earnings_date", "—") or "—",
+         None, "Next earnings date"),
+    ]
+
     metrics_html = "".join(
-        f'<div class="metric"><div class="metric-label">{k}</div><div class="metric-value">{v}</div></div>'
-        for k, v in metrics.items()
+        f'<div class="metric" style="{_color(hint)}" title="{tip}">'
+        f'<div class="metric-label">{k}</div>'
+        f'<div class="metric-value">{v}</div>'
+        f'</div>'
+        for k, v, hint, tip in metrics_raw
     )
 
     # Divergence block (only if flipped or thesis ≠ signal)
