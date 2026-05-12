@@ -1,0 +1,188 @@
+# ─────────────────────────────────────────────
+# STABLE THESIS SCORES  —  update monthly after earnings / major news.
+# These do NOT change with daily price action.
+# This is the "conviction layer" that prevents whipsaw decisions.
+#
+# Each category scored 0–10. Leave a category null to auto-score from data.
+# last_updated: when you last manually reviewed this ticker.
+#
+# Categories:
+#   fundamentals  — revenue, FCF, margins, debt
+#   valuation     — PE, PEG, P/FCF, EV/TAM
+#   moat          — network effect, switching costs, IP
+#   management    — track record, alignment, guidance accuracy
+#   partnerships  — strategic deals, distribution, ecosystem
+#   macro         — TAM, rates sensitivity, regulatory
+#   risk          — debt, litigation, dilution, key-person
+#
+# overall_conviction: your gut score after reading everything (0–10)
+# thesis_one_liner: your own words — overrides the AI-generated one if set
+# ─────────────────────────────────────────────
+
+MSFT:
+  last_updated: "2026-04-30"
+  fundamentals: 9
+  valuation: 7
+  moat: 10
+  management: 9
+  partnerships: 9
+  macro: 8
+  risk: 8
+  overall_conviction: 9
+  thesis_one_liner: "Azure + Copilot flywheel creating durable AI infrastructure moat with best-in-class capital allocation."
+
+AAPL:
+  last_updated: "2026-04-30"
+  fundamentals: 9
+  valuation: 7
+  moat: 9
+  management: 8
+  partnerships: 7
+  macro: 7
+  risk: 8
+  overall_conviction: 8
+  thesis_one_liner: "Services revenue compounding on 2.2B installed base with buyback engine reducing float 3-4% annually."
+
+NVDA:
+  last_updated: "2026-04-30"
+  fundamentals: 10
+  valuation: 6
+  moat: 9
+  management: 9
+  partnerships: 10
+  macro: 8
+  risk: 6
+  overall_conviction: 9
+  thesis_one_liner: "CUDA ecosystem lock-in makes NVDA the toll booth on the AI infrastructure buildout — still early innings."
+
+META:
+  last_updated: "2026-04-30"
+  fundamentals: 9
+  valuation: 8
+  moat: 8
+  management: 8
+  partnerships: 7
+  macro: 7
+  risk: 6
+  overall_conviction: 8
+  thesis_one_liner: "Ad platform FCF funding the AI infrastructure moat, with Reality Labs as a long-dated option."
+
+PLTR:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 4
+  moat: 8
+  management: 8
+  partnerships: 9
+  macro: 8
+  risk: 5
+  overall_conviction: 7
+  thesis_one_liner: "Ontological AI platform with government moat expanding to commercial — valuation is the risk, not the thesis."
+
+APP:
+  last_updated: "2026-04-30"
+  fundamentals: 8
+  valuation: 7
+  moat: 7
+  management: 8
+  partnerships: 7
+  macro: 6
+  risk: 5
+  overall_conviction: 7
+  thesis_one_liner: null  # let AI generate
+
+OKLO:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null  # pre-revenue, skip
+  moat: 7
+  management: 8
+  partnerships: 7
+  macro: 8
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: "Pre-revenue SMR play on nuclear renaissance — regulatory approval is the entire binary catalyst."
+
+IONQ:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: null
+  moat: 7
+  management: 7
+  partnerships: 7
+  macro: 7
+  risk: 4
+  overall_conviction: 6
+  thesis_one_liner: null
+
+LEU:
+  last_updated: "2026-04-30"
+  fundamentals: 6
+  valuation: 5
+  moat: 6
+  management: 6
+  partnerships: 5
+  macro: 7
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: null
+
+TE:
+  last_updated: "2026-04-30"
+  fundamentals: 5
+  valuation: 6
+  moat: 5
+  management: 5
+  partnerships: 4
+  macro: 6
+  risk: 5
+  overall_conviction: 6
+  thesis_one_liner: null
+
+UAMY:
+  last_updated: "2026-04-30"
+  fundamentals: 3
+  valuation: 5
+  moat: 4
+  management: 4
+  partnerships: 3
+  macro: 6
+  risk: 5
+  overall_conviction: 4
+  thesis_one_liner: "Antimony supply story is macro-driven, not company-specific — treat as speculative theme trade only."
+
+CRWV:
+  last_updated: "2026-04-30"
+  fundamentals: 4
+  valuation: 3
+  moat: 6
+  management: 6
+  partnerships: 7
+  macro: 7
+  risk: 5
+  overall_conviction: 5
+  thesis_one_liner: null
+
+MRAM:
+  last_updated: "2026-04-30"
+  fundamentals: 5
+  valuation: 6
+  moat: 7
+  management: 6
+  partnerships: 6
+  macro: 6
+  risk: 5
+  overall_conviction: 7
+  thesis_one_liner: "Niche MRAM IP in embedded market with confirmed institutional accumulation — asymmetric acquisition target."
+
+ACHR:
+  last_updated: "2026-04-30"
+  fundamentals: 2
+  valuation: null
+  moat: 6
+  management: 7
+  partnerships: 8
+  macro: 6
+  risk: 4
+  overall_conviction: 6
+  thesis_one_liner: null

@@ -1,0 +1,108 @@
+# ─────────────────────────────────────────────
+# Your watchlist. Add or remove tickers freely.
+#
+# archetype options:
+#   mega       — Mega-cap (AAPL, MSFT)          stable moat, FCF, buybacks
+#   largeg     — Large growth (NVDA, META)       revenue trajectory, TAM expansion
+#   smallg     — Small growth (APP, HOOD)        unit economics, Rule of 40
+#   spec       — Speculative (OKLO, IONQ)        cash runway, binary catalysts
+#   micro      — Micro-cap (MRAM, ACHR)          niche moat, partnership proof
+#
+# strategy options (can list multiple):
+#   anchor     — Core long-term hold, low churn
+#   growth     — Growth compounder
+#   speculative — High risk / high reward
+#
+# notes: free-text, shows in the report
+# ─────────────────────────────────────────────
+
+tickers:
+
+  # ── Mega-cap anchors ──────────────────────
+  - ticker: MSFT
+    archetype: mega
+    strategy: [anchor, growth]
+    sector: Technology
+    notes: Cloud + AI platform moat, consistent FCF. Core anchor.
+
+  - ticker: AAPL
+    archetype: mega
+    strategy: [anchor]
+    sector: Technology
+    notes: Services flywheel, brand moat, buyback machine.
+
+  # ── Large growth ──────────────────────────
+  - ticker: NVDA
+    archetype: largeg
+    strategy: [growth]
+    sector: Semiconductors
+    notes: AI infrastructure monopoly. Data center cycle still early.
+
+  - ticker: META
+    archetype: largeg
+    strategy: [growth]
+    sector: Technology
+    notes: Ad platform + AI capex ROI materialising. Undervalued on FCF.
+
+  - ticker: PLTR
+    archetype: largeg
+    strategy: [growth]
+    sector: Software
+    notes: Government + commercial AI platform. Watch institutional accumulation.
+
+  # ── Small growth ──────────────────────────
+  - ticker: APP
+    archetype: smallg
+    strategy: [growth]
+    sector: Software
+    notes: Mobile ad tech. Extraordinary margin expansion. Underfollowed.
+
+  # ── Speculative ───────────────────────────
+  - ticker: OKLO
+    archetype: spec
+    strategy: [speculative]
+    sector: Energy
+    notes: Small modular reactor. Sam Altman chaired. Nuclear policy tailwind.
+
+  - ticker: IONQ
+    archetype: spec
+    strategy: [speculative]
+    sector: Technology
+    notes: Quantum computing pure-play. Gov contracts validating. Binary catalyst-rich.
+
+  - ticker: LEU
+    archetype: spec
+    strategy: [speculative]
+    sector: Energy
+    notes: Uranium enrichment. High short interest squeeze potential.
+
+  - ticker: TE
+    archetype: smallg
+    strategy: [growth, speculative]
+    sector: Materials
+    notes: Battery materials. FVG support holding. Watch short squeeze setup.
+
+  - ticker: UAMY
+    archetype: micro
+    strategy: [speculative]
+    sector: Materials
+    notes: Antimony / critical minerals. Macro theme valid but moat thin.
+
+  - ticker: CRWV
+    archetype: largeg
+    strategy: [growth, speculative]
+    sector: Technology
+    notes: AI cloud infra (CoreWeave). Recent IPO. No FCF yet — watch earnings.
+
+  # ── Micro-cap ─────────────────────────────
+  - ticker: MRAM
+    archetype: micro
+    strategy: [speculative, growth]
+    sector: Semiconductors
+    notes: Magnetoresistive RAM niche. Institutional accumulation confirmed. Acquisition candidate.
+
+  - ticker: ACHR
+    archetype: micro
+    strategy: [speculative]
+    sector: Transportation
+    notes: eVTOL / air taxi. United Airlines partnership. Pre-revenue, FAA milestone-driven.

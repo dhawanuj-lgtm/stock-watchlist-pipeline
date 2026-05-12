@@ -1,0 +1,59 @@
+# ─────────────────────────────────────────────
+# Stock Watchlist Pipeline
+# Runs weekly (Sunday 06:00 UTC) and on manual trigger.
+# Deploys detailed report to GitLab Pages.
+# Sends TLDR email via Gmail SMTP.
+#
+# Required CI/CD Variables (Settings → CI/CD → Variables):
+#   ANTHROPIC_API_KEY     — Claude Haiku for thesis summaries (optional, fallback built-in)
+#   NEWS_API_KEY          — newsapi.org free tier (optional)
+#   ALPHA_VANTAGE_KEY     — alphavantage.co free tier (optional)
+#   GMAIL_USER            — sender Gmail address
+#   GMAIL_APP_PASSWORD    — Gmail App Password (not your login password)
+#   NOTIFY_EMAIL          — recipient email address
+# ─────────────────────────────────────────────
+
+image: python:3.11-slim
+
+stages:
+  - analyse
+  - pages
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip/
+
+# ── Weekly schedule ───────────────────────────
+# Add this in GitLab: CI/CD → Schedules → New schedule
+# Cron: 0 6 * * 0   (Sunday 06:00 UTC)
+# Target branch: main
+
+analyse:
+  stage: analyse
+  script:
+    - pip install -r requirements.txt --quiet
+    - python src/main.py
+  artifacts:
+    paths:
+      - public/
+      - cache/
+    expire_in: 30 days
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'       # allow manual run from UI
+
+pages:
+  stage: pages
+  script:
+    - echo "Deploying report to GitLab Pages..."
+  artifacts:
+    paths:
+      - public/
+  needs:
+    - analyse
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
