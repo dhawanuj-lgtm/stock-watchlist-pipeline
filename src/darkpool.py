@@ -16,10 +16,11 @@ ABOUT DARK POOL PRICES (like you see in retail Telegram channels):
   (b) Volume momentum (5d avg / 20d avg) — institutional activity leaves
       volume footprints. A 1.3x+ spike with price up = buying pressure.
 
-  (c) Quiver Quant FINRA short-sale volume (free tier, 100 calls/day).
+  (c) Quiver Quant FINRA short-sale volume (PAID, ~$30/month Hobbyist plan).
       Low short-sale ratio (<40%) + price rising = clean institutional buy.
       High short-sale ratio (>60%) + price rising = potential short squeeze.
-      Register free at https://quiverquant.com → add QUIVER_QUANT_KEY secret.
+      Only worth it if you're already a subscriber. Add QUIVER_QUANT_KEY secret.
+      The system works fully without this — (a) and (b) above are solid free proxies.
 
 SIGNAL INTERPRETATION:
   sentiment = "bullish"  → institutional footprint consistent with accumulation
@@ -194,7 +195,9 @@ def _fetch_quiver_short_vol(ticker: str) -> float | None:
     """
     Fetch last 5 days of FINRA short-sale data from Quiver Quant.
     Returns the average short-volume ratio (short vol / total vol) over 5 days.
-    Free tier: 100 calls/day. Returns None if key not set or call fails.
+
+    REQUIRES PAID SUBSCRIPTION ($30/month Hobbyist plan at api.quiverquant.com).
+    Returns None if QUIVER_QUANT_KEY not set — all other signals still work without it.
 
     How to read:
       < 0.38 → Most ATS volume is real buying (bullish)
