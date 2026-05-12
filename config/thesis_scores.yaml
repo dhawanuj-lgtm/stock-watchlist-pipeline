@@ -461,41 +461,6 @@ CMND:
   overall_conviction: 3
   thesis_one_liner: null  # watch for revenue inflection before committing to thesis
 
-OPENL:
-  last_updated: "2026-04-30"
-  fundamentals: null
-  valuation: null
-  moat: null
-  management: null
-  partnerships: null
-  macro: null
-  risk: null
-  overall_conviction: 2
-  thesis_one_liner: "Unverified ticker — confirm validity with broker before assigning any thesis or adding size."
-
-OPENW:
-  last_updated: "2026-04-30"
-  fundamentals: null
-  valuation: null
-  moat: null
-  management: null
-  partnerships: null
-  macro: null
-  risk: null
-  overall_conviction: 2
-  thesis_one_liner: "Unverified ticker — confirm validity with broker before assigning any thesis or adding size."
-
-OPENZ:
-  last_updated: "2026-04-30"
-  fundamentals: null
-  valuation: null
-  moat: null
-  management: null
-  partnerships: null
-  macro: null
-  risk: null
-  overall_conviction: 2
-  thesis_one_liner: "Unverified ticker — confirm validity with broker before assigning any thesis or adding size."
 
 # ── WATCHLIST ─────────────────────────────────────────────────────────────────
 

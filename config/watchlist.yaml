@@ -170,27 +170,6 @@ tickers:
     sector: Real Estate Technology
     notes: Opendoor — iBuying. Rate-sensitive. Watch spread margin and inventory turns.
 
-  - ticker: OPENL
-    group: owned
-    archetype: micro
-    strategy: [speculative]
-    sector: Technology
-    notes: Verify ticker validity with broker. Signals may be unreliable if illiquid.
-
-  - ticker: OPENW
-    group: owned
-    archetype: micro
-    strategy: [speculative]
-    sector: Technology
-    notes: Verify ticker validity with broker. Signals may be unreliable if illiquid.
-
-  - ticker: OPENZ
-    group: owned
-    archetype: micro
-    strategy: [speculative]
-    sector: Technology
-    notes: Verify ticker validity with broker. Signals may be unreliable if illiquid.
-
   - ticker: OSCR
     group: owned
     archetype: smallg
