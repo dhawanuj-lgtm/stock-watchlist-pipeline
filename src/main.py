@@ -46,7 +46,8 @@ from report        import generate_report
 from emailer       import send_email
 from database      import write_score_row, read_history, get_current_prices
 from accuracy      import compute_accuracy_report, load_accuracy_report
-from telegram_bot  import send_flip_alert, send_weekly_summary
+from darkpool      import compute_darkpool_signal
+from telegram_bot  import send_flip_alert, send_entry_signal, send_position_alert, send_weekly_summary
 
 logging.basicConfig(
     level=logging.INFO,
@@ -157,6 +158,10 @@ def run(
             thesis = generate_thesis(ticker, data, score_result, t_cfg)
             log.info(f"  Thesis: {thesis[:80]}...")
 
+            # ── Institutional accumulation signal (darkpool proxy) ────────────
+            dp = compute_darkpool_signal(ticker, data)
+            log.info(f"  DarkPool: {dp.sentiment} ({dp.volume_signal}) confidence={dp.confidence:.2f}")
+
             all_results.append({
                 "ticker":        ticker,
                 "name":          data.get("name", ticker),
@@ -167,6 +172,7 @@ def run(
                 "signal_result": signal_result,
                 "thesis":        thesis,
                 "thesis_config": t_cfg,
+                "dp":            dp,
             })
 
             signal_cache[ticker] = signal_result
@@ -182,7 +188,13 @@ def run(
                 bear_count  = len(score_result.bear_flags),
             )
 
-            # ── Telegram: instant alert on signal flip (flip-only, never on quiet runs) ──
+            # ── Score history: compare to last week for position alerts ───────
+            ticker_history = read_history(ticker, n_weeks=2)
+            prev_score = (
+                ticker_history[-2]["score"] if len(ticker_history) >= 2 else None
+            )
+
+            # ── Telegram: instant alert on signal flip ────────────────────────
             if signal_result.flipped:
                 send_flip_alert(
                     ticker      = ticker,
@@ -196,6 +208,70 @@ def run(
                     bull_flags  = score_result.bull_flags,
                     bear_flags  = score_result.bear_flags,
                 )
+
+            # ── Telegram: watchlist ENTRY SIGNAL ─────────────────────────────
+            # Fires when a watchlist ticker hits all three gates:
+            #   1. Thesis score ≥ 7.0 (green conviction)
+            #   2. Technical signal is bullish (CONFLUENCE or SQUEEZE ON)
+            #   3. Accumulation confirmed (OBV up, or volume spike, or Quiver data)
+            elif group == "watchlist":
+                score_gate   = score_result.weighted_score >= 7.0
+                signal_gate  = signal_result.signal in ("CONFLUENCE", "SQUEEZE ON")
+                dp_gate      = dp.sentiment == "bullish" or dp.volume_signal == "accumulation"
+                if score_gate and signal_gate and dp_gate:
+                    send_entry_signal(
+                        ticker         = ticker,
+                        name           = data.get("name", ticker),
+                        score          = score_result.weighted_score,
+                        signal         = signal_result.signal,
+                        price          = data.get("price"),
+                        analyst_target = data.get("analyst_target"),
+                        low_52w        = data.get("52w_low"),
+                        high_52w       = data.get("52w_high"),
+                        dp_note        = dp.note,
+                        dp_confidence  = dp.confidence,
+                        vol_momentum   = data.get("vol_momentum_5d"),
+                        bull_flags     = score_result.bull_flags,
+                        archetype      = archetype,
+                    )
+                    log.info(f"  → Entry signal sent for {ticker} (watchlist)")
+
+            # ── Telegram: owned POSITION ALERT ───────────────────────────────
+            # Three sub-alerts, each with its own threshold to avoid fatigue:
+            #   strengthen: score ≥ 7.5 AND improved ≥ 0.5 pts from last week
+            #   concern:    score ≤ 4.5 OR signal = RISK WATCH
+            #   recovery:   prev ≤ 5.0 AND now ≥ 6.0 (bounced from concern zone)
+            elif group == "owned":
+                cur  = score_result.weighted_score
+                prev = prev_score
+
+                is_strengthen = (cur >= 7.5 and prev is not None and cur - prev >= 0.5)
+                is_concern    = (cur <= 4.5 or signal_result.signal == "RISK WATCH")
+                is_recovery   = (prev is not None and prev <= 5.0 and cur >= 6.0)
+
+                alert_type = None
+                if is_strengthen:
+                    alert_type = "strengthen"
+                elif is_concern and not signal_result.flipped:   # flip alert already sent above
+                    alert_type = "concern"
+                elif is_recovery:
+                    alert_type = "recovery"
+
+                if alert_type:
+                    send_position_alert(
+                        ticker         = ticker,
+                        name           = data.get("name", ticker),
+                        score          = cur,
+                        prev_score     = prev,
+                        signal         = signal_result.signal,
+                        price          = data.get("price"),
+                        analyst_target = data.get("analyst_target"),
+                        alert_type     = alert_type,
+                        bull_flags     = score_result.bull_flags,
+                        bear_flags     = score_result.bear_flags,
+                        dp_note        = dp.note if dp.sentiment != "neutral" else "",
+                    )
+                    log.info(f"  → Position alert ({alert_type}) sent for {ticker} (owned)")
 
         except Exception as e:
             log.error(f"  FAILED for {ticker}: {e}", exc_info=True)

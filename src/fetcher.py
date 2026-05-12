@@ -237,16 +237,19 @@ def _safe_earnings_history(t) -> list:
 # ── Technical indicator computation ──────────────────────────────────────────
 
 def _compute_technicals(hist: pd.DataFrame) -> dict:
-    """Compute RSI, moving averages, volume trend from price history."""
+    """Compute RSI, moving averages, OBV trend, volume momentum from price history."""
     result = {
-        "rsi_14":        None,
-        "ma_50":         None,
-        "ma_200":        None,
-        "price_vs_ma50": None,
-        "price_vs_ma200":None,
-        "vol_ratio":     None,   # today's vol / 20d avg
-        "momentum_20d":  None,   # price return over last 20 days
-        "atr_14":        None,   # average true range (volatility proxy)
+        "rsi_14":          None,
+        "ma_50":           None,
+        "ma_200":          None,
+        "price_vs_ma50":   None,
+        "price_vs_ma200":  None,
+        "vol_ratio":       None,   # today's vol / 20d avg
+        "vol_momentum_5d": None,   # 5d avg vol / 20d avg vol (>1.2 = institutional spike)
+        "momentum_20d":    None,   # price return over last 20 days
+        "price_4w_return": None,   # price return over last 4 weeks (~20 trading days)
+        "obv_trend":       "flat", # "up" | "down" | "flat" — OBV 10d vs 20d EMA direction
+        "atr_14":          None,   # average true range (volatility proxy)
     }
     if hist.empty or len(hist) < 20:
         return result
@@ -275,9 +278,36 @@ def _compute_technicals(hist: pd.DataFrame) -> dict:
         if avg_vol > 0:
             result["vol_ratio"] = volume.iloc[-1] / avg_vol
 
+    # Volume momentum: 5d avg vs 20d avg — institutional activity fingerprint
+    # >1.2 = unusual volume, possibly institutional; used by darkpool.py
+    if len(volume) >= 20:
+        avg_20d = volume.iloc[-20:].mean()
+        avg_5d  = volume.iloc[-5:].mean()
+        if avg_20d > 0:
+            result["vol_momentum_5d"] = round(float(avg_5d / avg_20d), 2)
+
     # 20-day momentum
     if len(close) >= 21:
         result["momentum_20d"] = (close.iloc[-1] - close.iloc[-21]) / close.iloc[-21]
+
+    # 4-week return (~20 trading days) — used for entry/exit signal logic
+    if len(close) >= 20:
+        result["price_4w_return"] = (close.iloc[-1] - close.iloc[-20]) / close.iloc[-20]
+
+    # OBV trend — On-Balance Volume: rising OBV with flat/up price = institutional accumulation
+    # We compare the 5-period EMA of OBV vs the 20-period EMA.
+    if len(close) >= 21 and len(volume) >= 21:
+        direction = (close.diff().apply(lambda x: 1 if x > 0 else (-1 if x < 0 else 0)))
+        obv = (direction * volume).cumsum()
+        if len(obv) >= 20:
+            obv_ema5  = float(obv.ewm(span=5, adjust=False).mean().iloc[-1])
+            obv_ema20 = float(obv.ewm(span=20, adjust=False).mean().iloc[-1])
+            if obv_ema5 > obv_ema20 * 1.005:
+                result["obv_trend"] = "up"
+            elif obv_ema5 < obv_ema20 * 0.995:
+                result["obv_trend"] = "down"
+            else:
+                result["obv_trend"] = "flat"
 
     # ATR-14
     if len(hist) >= 15 and "High" in hist.columns and "Low" in hist.columns:

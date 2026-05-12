@@ -105,6 +105,131 @@ def send_flip_alert(
     return _send(text)
 
 
+def send_entry_signal(
+    ticker:       str,
+    name:         str,
+    score:        float,
+    signal:       str,
+    price:        float | None,
+    analyst_target: float | None,
+    low_52w:      float | None,
+    high_52w:     float | None,
+    dp_note:      str,
+    dp_confidence: float,
+    vol_momentum: float | None,
+    bull_flags:   list[str] | None = None,
+    archetype:    str = "largeg",
+) -> bool:
+    """
+    Watchlist entry signal: fired when a watchlist ticker hits a bullish threshold
+    (score ≥ 7.0 + CONFLUENCE + accumulation detected).
+    Includes price context and estimated entry zone so you can act immediately.
+    """
+    sig_em  = _SIGNAL_EMOJI.get(signal, "⚪")
+    upside  = f"+{((analyst_target - price) / price * 100):.1f}%" if analyst_target and price else "N/A"
+    target  = f"${analyst_target:,.2f}" if analyst_target else "N/A"
+
+    # Entry zone: ±2% around current price (tight band for limit orders)
+    if price:
+        entry_low  = price * 0.98
+        entry_high = price * 1.02
+        entry_zone = f"${entry_low:,.2f}–${entry_high:,.2f}"
+    else:
+        entry_zone = "N/A"
+
+    # 52-week context
+    range_str = ""
+    if low_52w and high_52w and price:
+        pct_from_low = (price - low_52w) / low_52w * 100
+        range_str = f"  52w: ${low_52w:,.2f}–${high_52w:,.2f} (+{pct_from_low:.0f}% from low)\n"
+
+    vol_str = f"  Volume: {vol_momentum:.1f}x avg" if vol_momentum and vol_momentum > 1.0 else ""
+    top_bull = f"\n✅ {bull_flags[0]}" if bull_flags else ""
+    conf_bar = "●" * round(dp_confidence * 5) + "○" * (5 - round(dp_confidence * 5))
+
+    text = (
+        f"<b>🎯 ENTRY SIGNAL · ${ticker}</b>  ({name})\n"
+        f"{sig_em} {signal} · Score: <b>{score}/10</b> 🟢\n"
+        f"\n"
+        f"  Price:      <b>${price:,.2f}</b>\n"
+        f"  Entry zone: {entry_zone}  (limit order band)\n"
+        f"  Target:     {target}  ({upside} upside)\n"
+        f"{range_str}"
+        f"\n"
+        f"📊 Accumulation [{conf_bar}]  {dp_note}\n"
+        f"{vol_str}"
+        f"{top_bull}\n"
+        f"\n<i>Watchlist signal — confirm with your own research before acting.</i>"
+    )
+    return _send(text)
+
+
+def send_position_alert(
+    ticker:       str,
+    name:         str,
+    score:        float,
+    prev_score:   float | None,
+    signal:       str,
+    price:        float | None,
+    analyst_target: float | None,
+    alert_type:   str,          # "strengthen" | "concern" | "recovery"
+    bull_flags:   list[str] | None = None,
+    bear_flags:   list[str] | None = None,
+    dp_note:      str = "",
+) -> bool:
+    """
+    Owned position alert: fired when a position's score crosses a meaningful threshold.
+    - strengthen: score ≥ 7.5 and improved ≥ 0.5 pts — thesis intact, consider adding
+    - concern:    score ≤ 4.5 or RISK WATCH — thesis weakening, review position
+    - recovery:   was in concern zone, now back above 6.0 — re-check thesis
+    """
+    sig_em = _SIGNAL_EMOJI.get(signal, "⚪")
+    upside = f"+{((analyst_target - price) / price * 100):.1f}%" if analyst_target and price else "N/A"
+    target = f"${analyst_target:,.2f}" if analyst_target else "N/A"
+    price_str = f"${price:,.2f}" if price else "N/A"
+
+    # Score change arrow
+    if prev_score is not None:
+        delta = score - prev_score
+        delta_str = f"  (was {prev_score}/10, {'+' if delta >= 0 else ''}{delta:.1f})"
+    else:
+        delta_str = ""
+
+    if alert_type == "strengthen":
+        header = f"💪 POSITION STRENGTHENING · ${ticker}"
+        emoji  = "🟢"
+        flag   = f"\n✅ {bull_flags[0]}" if bull_flags else ""
+        body   = (
+            f"Thesis strengthening: Score <b>{score}/10</b>{delta_str}\n"
+            f"  Price: {price_str} · Target: {target} ({upside})\n"
+            f"  Signal: {sig_em} {signal}"
+            f"{flag}"
+        )
+    elif alert_type == "concern":
+        header = f"⚠️ POSITION WATCH · ${ticker}"
+        emoji  = "🔴"
+        flag   = f"\n⚠️ {bear_flags[0]}" if bear_flags else ""
+        body   = (
+            f"Thesis weakening: Score <b>{score}/10</b>{delta_str}\n"
+            f"  Price: {price_str} · Signal: {sig_em} {signal}"
+            f"{flag}\n"
+            f"  Consider reviewing your thesis and position size."
+        )
+    else:  # recovery
+        header = f"🔄 POSITION RECOVERING · ${ticker}"
+        emoji  = "🟡"
+        flag   = f"\n✅ {bull_flags[0]}" if bull_flags else ""
+        body   = (
+            f"Score recovering: <b>{score}/10</b>{delta_str}\n"
+            f"  Price: {price_str} · Signal: {sig_em} {signal}"
+            f"{flag}"
+        )
+
+    dp_line = f"\n📊 {dp_note}" if dp_note else ""
+    text = f"<b>{header}</b>  ({name})\n\n{body}{dp_line}"
+    return _send(text)
+
+
 def send_weekly_summary(
     run_date:    str,
     group:       str,
