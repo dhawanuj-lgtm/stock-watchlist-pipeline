@@ -38,12 +38,15 @@ import yaml
 # Add src/ to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from fetcher    import fetch_ticker
-from scorer     import score_ticker
-from signals    import detect_signal, save_cache
-from thesis_ai  import generate_thesis
-from report     import generate_report
-from emailer    import send_email
+from fetcher       import fetch_ticker
+from scorer        import score_ticker
+from signals       import detect_signal, save_cache
+from thesis_ai     import generate_thesis
+from report        import generate_report
+from emailer       import send_email
+from database      import write_score_row, read_history, get_current_prices
+from accuracy      import compute_accuracy_report, load_accuracy_report
+from telegram_bot  import send_flip_alert, send_weekly_summary
 
 logging.basicConfig(
     level=logging.INFO,
@@ -168,6 +171,29 @@ def run(
 
             signal_cache[ticker] = signal_result
 
+            # ── Persist weekly score to history CSV ───────────────────────────
+            write_score_row(
+                ticker      = ticker,
+                score       = score_result.weighted_score,
+                signal      = signal_result.signal,
+                price       = data.get("price"),
+                score_light = score_result.weighted_light,
+                bull_count  = len(score_result.bull_flags),
+                bear_count  = len(score_result.bear_flags),
+            )
+
+            # ── Telegram: instant alert on signal flip ────────────────────────
+            if signal_result.flipped:
+                send_flip_alert(
+                    ticker      = ticker,
+                    name        = data.get("name", ticker),
+                    old_signal  = signal_result.previous,
+                    new_signal  = signal_result.signal,
+                    score       = score_result.weighted_score,
+                    score_light = score_result.weighted_light,
+                    thesis      = thesis,
+                )
+
         except Exception as e:
             log.error(f"  FAILED for {ticker}: {e}", exc_info=True)
             errors.append(f"{ticker}: {e}")
@@ -206,8 +232,26 @@ def run(
 
     log.info(f"\n=== Generating outputs ({len(all_results)} tickers, {len(radar_results)} radar peers) ===")
 
+    # ── Signal accuracy scorecard (60-day lookback) ───────────────────────────
+    current_prices = get_current_prices(all_results)
+    try:
+        accuracy_report = compute_accuracy_report(current_prices)
+        log.info("✓ Accuracy report computed")
+    except Exception as e:
+        log.warning(f"Accuracy report failed (non-fatal): {e}")
+        accuracy_report = load_accuracy_report()   # use last good one if available
+
+    # ── Score history map for sparklines ─────────────────────────────────────
+    history_map = {r["ticker"]: read_history(r["ticker"], n_weeks=12) for r in all_results}
+
     # 6. Detailed HTML report → public/index.html
-    generate_report(all_results, run_date, radar_results=radar_results or None)
+    generate_report(
+        all_results,
+        run_date,
+        radar_results=radar_results or None,
+        history_map=history_map,
+        accuracy_report=accuracy_report,
+    )
     log.info("✓ Detailed report written to public/index.html")
 
     # 7. TLDR email
@@ -223,6 +267,13 @@ def run(
         _se(all_results, run_date)
         if _orig_user:
             os.environ["GMAIL_USER"] = _orig_user
+
+    # ── Telegram weekly summary ───────────────────────────────────────────────
+    send_weekly_summary(
+        run_date = run_date,
+        group    = group or "all",
+        results  = all_results,
+    )
 
     # 8. Save signal cache for tomorrow's flip comparison
     save_cache(signal_cache)

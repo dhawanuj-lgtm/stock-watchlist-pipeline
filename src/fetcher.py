@@ -1,7 +1,7 @@
 """
 fetcher.py — Data acquisition layer.
 
-Pulls from: yfinance (primary), NewsAPI, Alpha Vantage, FRED, SEC EDGAR.
+Pulls from: yfinance (primary), NewsAPI, Alpha Vantage, FRED, SEC EDGAR, Finnhub.
 All sources are free-tier. Missing API keys degrade gracefully.
 Returns a unified dict per ticker consumed by scorer.py and signals.py.
 """
@@ -14,6 +14,9 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 from datetime import datetime, timedelta
+
+from edgar          import fetch_edgar_fundamentals
+from finnhub_client import fetch_finnhub_signals
 
 log = logging.getLogger(__name__)
 
@@ -111,6 +114,29 @@ def fetch_ticker(ticker: str, archetype: str) -> dict:
         # ── Macro (FRED — rate environment) ──────────────────────────────
         "macro":              _fetch_macro(),
     }
+
+    # ── SEC EDGAR fundamentals (free, no key — fills yfinance gaps) ───────────
+    edgar = fetch_edgar_fundamentals(ticker)
+    if edgar:
+        # Fill None gaps: EDGAR supplements, does not override good yfinance data
+        if data.get("gross_margin") is None and edgar.get("edgar_gross_margin") is not None:
+            data["gross_margin"] = edgar["edgar_gross_margin"]
+        if data.get("free_cashflow") is None and edgar.get("edgar_fcf") is not None:
+            data["free_cashflow"] = edgar["edgar_fcf"]
+        if data.get("total_debt") is None and edgar.get("edgar_total_debt") is not None:
+            data["total_debt"] = edgar["edgar_total_debt"]
+        # Store all raw EDGAR fields for report display + scoring context
+        data.update(edgar)
+
+    # ── Finnhub signals (free tier, optional — activate via FINNHUB_API_KEY) ──
+    finnhub = fetch_finnhub_signals(ticker)
+    if finnhub:
+        if finnhub.get("fh_insider_bullish") and not data.get("insider_txns"):
+            data["insider_txns"] = [{
+                "source": "finnhub",
+                "net_shares_90d": finnhub.get("fh_insider_net_shares_90d"),
+            }]
+        data.update(finnhub)
 
     # Derived: price change 1D
     if data["price"] and data["prev_close"]:

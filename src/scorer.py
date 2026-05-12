@@ -88,6 +88,9 @@ def score_ticker(data: dict, thesis: dict) -> TickerScore:
         weighted_sum += result.score * w
 
     weighted_score = round(weighted_sum / total_weight, 1) if total_weight > 0 else 0.0
+
+    # ── Macro adjustment (±0.5 max, driven by FRED data already in data["macro"]) ──
+    weighted_score = _apply_macro_adjustment(weighted_score, arch, data)
     weighted_light = _light(weighted_score)
 
     # Aggregate bull / bear flags
@@ -127,6 +130,48 @@ def score_ticker(data: dict, thesis: dict) -> TickerScore:
         bear_flags=top_bear,
         thesis_data=thesis_data,
     )
+
+
+# ── Macro adjustment ──────────────────────────────────────────────────────────
+
+_RATE_SENSITIVE = {"fintech", "real estate", "insurtech", "banking", "financial"}
+_GROWTH_ARCHS   = {"largeg", "smallg"}
+_SPEC_ARCHS     = {"micro", "spec"}
+
+def _apply_macro_adjustment(score: float, arch: str, data: dict) -> float:
+    """
+    Apply a contextual ±0.5 adjustment based on macro environment.
+    Uses FRED data already fetched in data["macro"]. Max impact: ±0.5 pts.
+    """
+    macro = data.get("macro", {})
+    if not macro:
+        return score
+
+    ffr    = macro.get("fed_funds_rate")
+    spread = macro.get("yield_spread_10_2")     # 10Y − 2Y (negative = inverted)
+    sector = (data.get("sector") or "").lower()
+
+    adj = 0.0
+
+    # Rate-sensitive sectors penalised in high-rate environment
+    if ffr and ffr > 4.5 and any(s in sector for s in _RATE_SENSITIVE):
+        adj -= 0.3
+
+    # Inverted yield curve hurts growth stocks (signals recession ahead)
+    if spread is not None and spread < -0.2 and arch in _GROWTH_ARCHS:
+        adj -= 0.2
+
+    # Risk-off (inverted curve + high FFR) is extra harsh for speculative positions
+    if spread is not None and spread < -0.3 and ffr and ffr > 4.5 and arch in _SPEC_ARCHS:
+        adj -= 0.4
+
+    # Risk-on environment: steep positive curve + low rates → mild bonus
+    if spread is not None and spread > 0.5 and ffr and ffr < 3.5:
+        adj += 0.2
+
+    # Cap total adjustment
+    adj = max(-0.5, min(0.5, adj))
+    return round(max(0.0, min(10.0, score + adj)), 1)
 
 
 # ── Category scorers ──────────────────────────────────────────────────────────
@@ -188,7 +233,7 @@ def _score_fundamentals(data: dict, thesis: dict, arch: str) -> CategoryResult:
         elif de < 30:
             bull.append(f"Clean balance sheet — D/E {de:.0f}%")
 
-    # Earnings consistency (beat rate proxy)
+    # Earnings consistency (beat rate proxy — yfinance + Finnhub)
     eh = data.get("earnings_history", [])
     if eh:
         beats = sum(1 for e in eh if e.get("surprise_pct", 0) > 0)
@@ -199,6 +244,21 @@ def _score_fundamentals(data: dict, thesis: dict, arch: str) -> CategoryResult:
             bull.append(f"Beats estimates {int(beat_rate*100)}% of quarters — reliable guidance")
         elif beat_rate < 0.4:
             bear.append(f"Only {int(beat_rate*100)}% earnings beat rate — execution risk")
+
+    # Finnhub earnings surprise (supplements yfinance when available)
+    fh_beat = data.get("fh_beat")
+    fh_miss = data.get("fh_miss")
+    fh_streak = data.get("fh_consecutive_beats", 0)
+    if fh_beat is not None:
+        if fh_beat:
+            score_parts.append(8.0)
+            if fh_streak and fh_streak >= 3:
+                bull.append(f"Finnhub: {fh_streak} consecutive earnings beats — execution track record")
+            else:
+                bull.append(f"Finnhub: beat estimates last quarter by {data.get('fh_eps_surprise_pct', 0):.1f}%")
+        elif fh_miss:
+            score_parts.append(3.0)
+            bear.append(f"Finnhub: missed earnings by {abs(data.get('fh_eps_surprise_pct', 0)):.1f}% last quarter")
 
     computed = _avg(score_parts) if score_parts else None
     final = _blend(manual, computed, manual_weight=0.5)
@@ -594,6 +654,16 @@ def _score_institutional(data: dict, arch: str) -> CategoryResult:
         bull.append(f"{len(holders)}+ institutional holders — broad institutional ownership base")
     elif len(holders) <= 3 and arch not in ("micro",):
         score_parts.append(4)
+
+    # Finnhub insider trading sentiment (supplements yfinance insider_txns)
+    if data.get("fh_insider_bullish"):
+        net = data.get("fh_insider_net_shares_90d", 0)
+        score_parts.append(8.5)
+        bull.append(f"Insider net buying {net:+,} shares (90d) — executives adding exposure")
+    elif data.get("fh_insider_bearish"):
+        net = data.get("fh_insider_net_shares_90d", 0)
+        score_parts.append(3.0)
+        bear.append(f"Insider net selling {net:+,} shares (90d) — executive distribution")
 
     score = _avg(score_parts) if score_parts else 5.0
     return CategoryResult(score=score, light=_light(score), factors=score_parts,

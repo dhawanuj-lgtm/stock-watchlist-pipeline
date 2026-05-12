@@ -1,10 +1,13 @@
 """
-report.py — Detailed HTML report generator for GitLab Pages.
+report.py — Detailed HTML report generator for GitHub Pages.
 
-Generates a self-contained public/index.html with:
-  • Portfolio summary header
+Enterprise-grade self-contained public/index.html with:
+  • Signal accuracy scorecard (60-day hit rate vs SPY)
+  • Macro environment panel (FRED yield curve + rates)
+  • Portfolio summary header with conviction distribution
   • Per-ticker scorecard: category breakdown, traffic lights,
-    bull/bear flags, thesis, key metrics table, technical factors
+    bull/bear flags, thesis, key metrics, 12-week score sparkline
+  • Radar peers sidebar
   • Sorted by weighted conviction score descending
 """
 
@@ -49,13 +52,23 @@ CAT_LABELS = {
 }
 
 
-def generate_report(all_results: list[dict], run_date: str, radar_results: list[dict] | None = None) -> str:
+def generate_report(
+    all_results:     list[dict],
+    run_date:        str,
+    radar_results:   list[dict] | None = None,
+    history_map:     dict | None       = None,    # ticker → list of history rows
+    accuracy_report: dict | None       = None,    # from accuracy.py
+) -> str:
     """
     all_results: list of dicts, each with keys:
       ticker, name, archetype, strategy, data, score_result, signal_result, thesis
-    radar_results: optional list of peer tickers to show in a separate radar section.
+    radar_results: optional list of peer tickers for the radar section.
+    history_map:   {ticker: [{date, score, signal, ...}]} — for sparklines.
+    accuracy_report: output of accuracy.compute_accuracy_report() — for scorecard.
     Returns the HTML string and writes it to public/index.html.
     """
+    history_map     = history_map or {}
+    accuracy_report = accuracy_report or {}
     sorted_results = sorted(all_results, key=lambda x: x["score_result"].weighted_score, reverse=True)
 
     # Summary stats
@@ -79,10 +92,15 @@ def generate_report(all_results: list[dict], run_date: str, radar_results: list[
     green_links  = _ticker_links(green_results)
     red_links    = _ticker_links(red_results)
 
-    # Radar section HTML
-    radar_html = _radar_section(radar_results) if radar_results else ""
+    # New enterprise sections
+    radar_html    = _radar_section(radar_results) if radar_results else ""
+    accuracy_html = _accuracy_section(accuracy_report)
+    macro_html    = _macro_panel(all_results)
 
-    cards_html = "\n".join(_ticker_card(r) for r in sorted_results)
+    cards_html = "\n".join(
+        _ticker_card(r, history=history_map.get(r["ticker"], []))
+        for r in sorted_results
+    )
 
     html = f"""<!DOCTYPE html>
 <html lang="en">
@@ -164,6 +182,32 @@ def generate_report(all_results: list[dict], run_date: str, radar_results: list[
                  border-radius: 6px; font-size: .8rem; line-height: 1.5; }}
   .updated {{ font-size: .65rem; color: #adb5bd; margin-top: 3px; }}
   footer {{ text-align: center; padding: 1.5rem; font-size: .75rem; color: #adb5bd; }}
+  /* Accuracy scorecard */
+  .accuracy-section {{ margin: 0 2rem 1.5rem; }}
+  .accuracy-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: .75rem; }}
+  .acc-card {{ background: #fff; border: 1px solid #dee2e6; border-radius: 10px; padding: 1rem 1.25rem; }}
+  .acc-title {{ font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6c757d; margin-bottom: .5rem; }}
+  .acc-rate  {{ font-size: 2rem; font-weight: 800; line-height: 1; }}
+  .acc-sub   {{ font-size: .75rem; color: #6c757d; margin-top: .25rem; }}
+  .acc-note  {{ font-size: .7rem; color: #adb5bd; margin-top: .35rem; font-style: italic; }}
+  .acc-table {{ width: 100%; border-collapse: collapse; font-size: .75rem; margin-top: .5rem; }}
+  .acc-table th {{ color: #6c757d; font-weight: 600; text-align: left; padding: 3px 6px; border-bottom: 1px solid #dee2e6; }}
+  .acc-table td {{ padding: 3px 6px; }}
+  .acc-table tr:nth-child(even) {{ background: #f8f9fa; }}
+  /* Macro panel */
+  .macro-panel {{ margin: 0 2rem 1.5rem; background: #fff; border: 1px solid #dee2e6;
+                  border-radius: 10px; padding: .75rem 1.25rem; }}
+  .macro-title {{ font-size: .7rem; font-weight: 700; text-transform: uppercase;
+                  letter-spacing: .06em; color: #6c757d; margin-bottom: .6rem; }}
+  .macro-grid  {{ display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: center; }}
+  .macro-item  {{ text-align: center; }}
+  .macro-val   {{ font-size: 1.1rem; font-weight: 700; }}
+  .macro-lbl   {{ font-size: .65rem; color: #6c757d; margin-top: 1px; }}
+  .macro-regime{{ font-size: .75rem; font-weight: 600; padding: .2rem .7rem;
+                  border-radius: 12px; margin-left: auto; }}
+  /* Sparkline */
+  .sparkline-wrap {{ padding: 0 1.25rem .75rem; }}
+  .sparkline-label {{ font-size: .65rem; color: #6c757d; margin-bottom: 3px; }}
 </style>
 </head>
 <body>
@@ -198,6 +242,10 @@ def generate_report(all_results: list[dict], run_date: str, radar_results: list[
   <div class="stat"><div class="stat-n" style="color:#856404">{flip_count}</div><div class="stat-l">Signal flips</div></div>
 </div>
 
+{accuracy_html}
+
+{macro_html}
+
 <div class="legend">
   <span>🟢 <strong>≥ 7.0</strong> High conviction</span>
   <span>🟡 <strong>5.0 – 6.9</strong> Watch</span>
@@ -212,8 +260,9 @@ def generate_report(all_results: list[dict], run_date: str, radar_results: list[
 
 {radar_html}
 
-<footer>Scores update on archetype-weighted framework. Thesis scores refresh monthly. Technical signals daily.<br>
-Data: yfinance · NewsAPI · FRED · SEC EDGAR — all free tier.</footer>
+<footer>Scores update on archetype-weighted framework. Thesis scores refresh monthly. Technical signals weekly.<br>
+Data: yfinance · SEC EDGAR · FRED · NewsAPI · Finnhub — all free tier &nbsp;|&nbsp; Accuracy: 60-day signal hit rate vs SPY+2%<br>
+Activate Finnhub / Telegram by adding secrets to GitHub Actions.</footer>
 </body>
 </html>"""
 
@@ -223,10 +272,10 @@ Data: yfinance · NewsAPI · FRED · SEC EDGAR — all free tier.</footer>
     return html
 
 
-def _ticker_card(r: dict) -> str:
-    sr  = r["score_result"]
-    sig = r["signal_result"]
-    data = r["data"]
+def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
+    sr     = r["score_result"]
+    sig    = r["signal_result"]
+    data   = r["data"]
     thesis = r["thesis"]
 
     light_style, dot = LIGHT_CSS.get(sr.weighted_light, LIGHT_CSS["gray"])
@@ -281,6 +330,16 @@ def _ticker_card(r: dict) -> str:
     change_str = (f'+{change*100:.2f}%' if change and change > 0 else f'{change*100:.2f}%') if change else "—"
     change_color = "#28a745" if change and change > 0 else "#dc3545"
 
+    # EDGAR-sourced values (shown when yfinance was None)
+    gm_raw  = data.get("gross_margin") or data.get("edgar_gross_margin")
+    fcf_raw = data.get("free_cashflow") or data.get("edgar_fcf")
+    fcf_str = f'${fcf_raw/1e6:.0f}M' if fcf_raw else "—"
+    gm_str  = f'{gm_raw*100:.1f}%' if gm_raw else "—"
+    edgar_tag = " <sup style='font-size:.55rem;color:#adb5bd'>EDGAR</sup>" if (
+        data.get("edgar_gross_margin") and not data.get("gross_margin")
+        or data.get("edgar_fcf") and not data.get("free_cashflow")
+    ) else ""
+
     metrics = {
         "Price":         f"${price:.2f}" if price else "—",
         "1D Change":     f'<span style="color:{change_color}">{change_str}</span>',
@@ -288,7 +347,9 @@ def _ticker_card(r: dict) -> str:
         "Short Float":   f'{data["short_float_pct"]*100:.1f}%' if data.get("short_float_pct") else "—",
         "Inst. Own":     f'{data["inst_ownership_pct"]*100:.0f}%' if data.get("inst_ownership_pct") else "—",
         "Fwd P/E":       f'{data["pe_forward"]:.1f}x' if data.get("pe_forward") and data["pe_forward"] > 0 else "—",
-        "Rev Growth":    f'{data["revenue_growth_yoy"]*100:.1f}%' if data.get("revenue_growth_yoy") else "—",
+        f"Rev Growth":   f'{data["revenue_growth_yoy"]*100:.1f}%' if data.get("revenue_growth_yoy") else "—",
+        f"Gross Margin{edgar_tag}": gm_str,
+        f"FCF{edgar_tag}":  fcf_str,
         "Analyst Target":f'${data["analyst_target"]:.2f}' if data.get("analyst_target") else "—",
         "Earnings":      data.get("earnings_date", "—") or "—",
     }
@@ -330,6 +391,8 @@ def _ticker_card(r: dict) -> str:
   <div class="thesis"><strong>Thesis:</strong> {thesis}</div>
 
   {divergence_html}
+
+  {_sparkline_html(history)}
 
   <div class="metrics-grid">{metrics_html}</div>
 
@@ -404,4 +467,266 @@ def _radar_section(radar_results: list[dict]) -> str:
   <div class="radar-grid">
 {cards_html}
   </div>
+</div>"""
+
+
+# ── Accuracy scorecard section ────────────────────────────────────────────────
+
+def _accuracy_section(accuracy_report: dict) -> str:
+    """
+    Renders the 60-day signal accuracy scorecard.
+    Shows buy/avoid hit rates, avg returns, and top performers table.
+    Returns empty string if no data yet (< 8 weeks of history).
+    """
+    if not accuracy_report:
+        return ""
+
+    buy   = accuracy_report.get("buy_signals", {})
+    avoid = accuracy_report.get("avoid_signals", {})
+    spy   = accuracy_report.get("spy_return_pct")
+    note  = accuracy_report.get("data_note", "")
+    gen   = accuracy_report.get("generated_at", "")
+
+    # If no signals to show yet, render a placeholder note
+    buy_count   = buy.get("count", 0)
+    avoid_count = avoid.get("count", 0)
+    if buy_count == 0 and avoid_count == 0:
+        return f"""
+<div class="accuracy-section">
+  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6c757d;margin-bottom:.5rem">📊 Signal Accuracy — 60-Day Scorecard</div>
+  <div style="background:#fff;border:1px solid #dee2e6;border-radius:10px;padding:1rem 1.25rem;font-size:.8rem;color:#6c757d">{note or 'Accuracy data will appear after 8+ weeks of weekly runs.'}</div>
+</div>"""
+
+    buy_rate  = buy.get("hit_rate_pct")
+    buy_ret   = buy.get("avg_return_pct")
+    buy_exc   = buy.get("avg_excess_pct")
+    av_rate   = avoid.get("hit_rate_pct")
+    av_ret    = avoid.get("avg_return_pct")
+
+    def _rate_color(r):
+        if r is None: return "#6c757d"
+        if r >= 60:   return "#155724"
+        if r >= 45:   return "#856404"
+        return "#721c24"
+
+    def _fmt(v, suffix=""):
+        return f"{v}{suffix}" if v is not None else "—"
+
+    buy_rate_html  = f'<span style="color:{_rate_color(buy_rate)}">{_fmt(buy_rate, "%")}</span>'
+    avd_rate_html  = f'<span style="color:{_rate_color(av_rate)}">{_fmt(av_rate, "%")}</span>'
+
+    # Top performers table (buy signals)
+    top_rows = ""
+    for row in (buy.get("top_performers") or [])[:8]:
+        ret = row.get("ticker_return_pct", 0)
+        exc = row.get("excess_return_pct", 0)
+        correct = row.get("correct")
+        badge = "✓" if correct else ("✗" if correct is False else "?")
+        badge_color = "#155724" if correct else ("#721c24" if correct is False else "#6c757d")
+        ret_color = "#155724" if ret >= 0 else "#dc3545"
+        exc_color = "#155724" if exc >= 0 else "#dc3545"
+        top_rows += f"""<tr>
+          <td style="font-weight:600">{row.get('ticker','')}</td>
+          <td>{row.get('date','')[:7]}</td>
+          <td style="color:{ret_color}">{ret:+.1f}%</td>
+          <td style="color:{exc_color}">{exc:+.1f}%</td>
+          <td style="color:{badge_color}">{badge}</td>
+        </tr>"""
+
+    spy_str = f"{spy:+.1f}%" if spy is not None else "—"
+
+    return f"""
+<div class="accuracy-section">
+  <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#6c757d;margin-bottom:.5rem">📊 Signal Accuracy — 60-Day Scorecard &nbsp;<span style="font-weight:400;font-style:italic">as of {gen}</span></div>
+  <div class="accuracy-grid">
+
+    <div class="acc-card">
+      <div class="acc-title">Buy Signal Hit Rate</div>
+      <div class="acc-rate">{buy_rate_html}</div>
+      <div class="acc-sub">of {buy_count} buy signals beat SPY +2%</div>
+      <div class="acc-sub">Avg return: {_fmt(buy_ret, '%')} &nbsp;|&nbsp; Avg excess: {_fmt(buy_exc, '%')}</div>
+      <div class="acc-sub">SPY 60d: {spy_str}</div>
+    </div>
+
+    <div class="acc-card">
+      <div class="acc-title">Avoid Signal Hit Rate</div>
+      <div class="acc-rate">{avd_rate_html}</div>
+      <div class="acc-sub">of {avoid_count} avoid signals underperformed SPY</div>
+      <div class="acc-sub">Avg return: {_fmt(av_ret, '%')}</div>
+      <div class="acc-note">{note}</div>
+    </div>
+
+    <div class="acc-card" style="grid-column: span 2">
+      <div class="acc-title">Top Buy Signal Performers (60d)</div>
+      <table class="acc-table">
+        <thead><tr><th>Ticker</th><th>Signal Date</th><th>Return</th><th>vs SPY</th><th>✓</th></tr></thead>
+        <tbody>{top_rows}</tbody>
+      </table>
+    </div>
+
+  </div>
+</div>"""
+
+
+# ── Macro environment panel ───────────────────────────────────────────────────
+
+def _macro_panel(all_results: list[dict]) -> str:
+    """
+    Renders compact FRED macro overlay panel.
+    Extracts data from first result's data["macro"] dict.
+    Returns empty string if no macro data available.
+    """
+    if not all_results:
+        return ""
+
+    macro = {}
+    for r in all_results:
+        m = r.get("data", {}).get("macro", {})
+        if m:
+            macro = m
+            break
+
+    if not macro:
+        return ""
+
+    ffr      = macro.get("fed_funds_rate")
+    cpi      = macro.get("cpi_yoy")
+    ten_yr   = macro.get("ten_yr_yield")
+    two_yr   = macro.get("two_yr_yield")
+    spread   = macro.get("yield_spread_10_2")
+    unemp    = macro.get("unemployment")
+
+    def _fmt_rate(v):
+        return f"{v:.2f}%" if v is not None else "—"
+
+    def _spread_color(s):
+        if s is None:   return "#6c757d"
+        if s < -0.2:    return "#dc3545"
+        if s < 0.2:     return "#856404"
+        return "#28a745"
+
+    def _ffr_color(v):
+        if v is None:   return "#6c757d"
+        if v > 5.0:     return "#dc3545"
+        if v > 3.5:     return "#856404"
+        return "#28a745"
+
+    spread_color = _spread_color(spread)
+    ffr_color    = _ffr_color(ffr)
+
+    # Macro regime badge
+    if ffr is not None and spread is not None:
+        if ffr > 4.5 and spread < -0.2:
+            regime = ("⚠ Restrictive + Inverted Curve", "#f8d7da", "#721c24")
+        elif ffr > 4.5:
+            regime = ("Restrictive Rates", "#fff3cd", "#856404")
+        elif spread < -0.2:
+            regime = ("Inverted Yield Curve", "#fff3cd", "#856404")
+        elif ffr < 3.0 and spread > 0.5:
+            regime = ("✓ Accommodative", "#d4edda", "#155724")
+        else:
+            regime = ("Neutral", "#e2e3e5", "#495057")
+    else:
+        regime = ("Data unavailable", "#e2e3e5", "#6c757d")
+
+    regime_label, regime_bg, regime_fg = regime
+
+    items = [
+        ("Fed Funds Rate",  _fmt_rate(ffr),    ffr_color),
+        ("10-Yr Yield",     _fmt_rate(ten_yr),  "#212529"),
+        ("2-Yr Yield",      _fmt_rate(two_yr),  "#212529"),
+        ("10y−2y Spread",   _fmt_rate(spread),  spread_color),
+        ("Unemployment",    _fmt_rate(unemp),   "#212529"),
+    ]
+
+    items_html = "".join(f"""
+    <div class="macro-item">
+      <div class="macro-val" style="color:{color}">{val}</div>
+      <div class="macro-lbl">{label}</div>
+    </div>""" for label, val, color in items)
+
+    return f"""
+<div class="macro-panel">
+  <div class="macro-title">🏛 Macro Environment (FRED)</div>
+  <div class="macro-grid">
+    {items_html}
+    <span class="macro-regime" style="background:{regime_bg};color:{regime_fg}">{regime_label}</span>
+  </div>
+</div>"""
+
+
+# ── Sparkline SVG ─────────────────────────────────────────────────────────────
+
+def _sparkline_html(history: list[dict] | None) -> str:
+    """
+    Renders a compact inline SVG polyline showing the last 12 weeks of scores.
+    history: list of row dicts sorted oldest→newest (as returned by read_history).
+    Returns empty string if fewer than 2 data points.
+    """
+    if not history or len(history) < 2:
+        return ""
+
+    rows   = history[-12:]   # cap at 12 weeks
+    scores = []
+    dates  = []
+    for row in rows:
+        try:
+            scores.append(float(row["score"]))
+            dates.append(str(row.get("date", ""))[:10])
+        except (KeyError, ValueError, TypeError):
+            continue
+
+    if len(scores) < 2:
+        return ""
+
+    # SVG geometry
+    W, H   = 260, 36
+    pad_x  = 4
+    pad_y  = 4
+    min_s  = max(0.0, min(scores) - 0.5)
+    max_s  = min(10.0, max(scores) + 0.5)
+    rng    = max_s - min_s if max_s > min_s else 1.0
+    n      = len(scores)
+
+    def _px(i):
+        return pad_x + (i / (n - 1)) * (W - 2 * pad_x)
+
+    def _py(s):
+        return pad_y + (1 - (s - min_s) / rng) * (H - 2 * pad_y)
+
+    points = " ".join(f"{_px(i):.1f},{_py(s):.1f}" for i, s in enumerate(scores))
+
+    # Colour the line by the last score
+    last = scores[-1]
+    line_color = "#28a745" if last >= 7.0 else ("#ffc107" if last >= 5.0 else "#dc3545")
+
+    # Optional: shade fill
+    close_path = (
+        f"M{_px(0):.1f},{_py(scores[0]):.1f} "
+        + " ".join(f"L{_px(i):.1f},{_py(s):.1f}" for i, s in enumerate(scores))
+        + f" L{_px(n-1):.1f},{H-pad_y:.1f} L{_px(0):.1f},{H-pad_y:.1f} Z"
+    )
+
+    latest_dot_x = _px(n - 1)
+    latest_dot_y = _py(last)
+
+    first_date = dates[0] if dates else ""
+    last_date  = dates[-1] if dates else ""
+
+    return f"""
+<div class="sparkline-wrap">
+  <div class="sparkline-label">12-week score trend &nbsp;
+    <span style="color:#adb5bd">{first_date} → {last_date}</span>
+  </div>
+  <svg viewBox="0 0 {W} {H}" width="{W}" height="{H}" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">
+    <!-- Fill -->
+    <path d="{close_path}" fill="{line_color}" fill-opacity="0.12"/>
+    <!-- Line -->
+    <polyline points="{points}" fill="none" stroke="{line_color}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+    <!-- Latest dot -->
+    <circle cx="{latest_dot_x:.1f}" cy="{latest_dot_y:.1f}" r="3" fill="{line_color}"/>
+    <!-- Score labels at first and last -->
+    <text x="{_px(0):.1f}" y="{H}" font-size="7" fill="#adb5bd" text-anchor="middle">{scores[0]:.1f}</text>
+    <text x="{_px(n-1):.1f}" y="{H}" font-size="7" fill="{line_color}" text-anchor="middle" font-weight="bold">{last:.1f}</text>
+  </svg>
 </div>"""
