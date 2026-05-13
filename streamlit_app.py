@@ -1018,49 +1018,60 @@ def tab_analyze(manifest: dict):
             # ── News headlines ─────────────────────────────────────────────────
             st.markdown("---")
             st.markdown("#### 📰 Recent News")
+            st.caption("Source: Yahoo Finance (via yfinance, no API key needed)")
             news_items = fetch_news(tkr)
+            shown = 0
             if news_items:
-                for item in news_items[:6]:
-                    title     = item.get("title", "")
-                    link      = item.get("link", "#")
-                    publisher = item.get("publisher", "")
-                    pub_ts    = item.get("providerPublishTime", 0)
+                for item in news_items[:10]:
+                    # yfinance news dict fields (handle both old and new format)
+                    title     = (item.get("title") or item.get("headline") or "").strip()
+                    link      = (item.get("link")  or item.get("url")      or "").strip()
+                    publisher = (item.get("publisher") or item.get("source") or "").strip()
+                    pub_ts    = item.get("providerPublishTime") or item.get("datetime") or 0
+                    if not title:
+                        continue
                     try:
-                        pub_dt = datetime.fromtimestamp(pub_ts).strftime("%b %d") if pub_ts else ""
+                        pub_dt = datetime.fromtimestamp(int(pub_ts)).strftime("%b %d") if pub_ts else ""
                     except Exception:
                         pub_dt = ""
-                    # Simple keyword sentiment
-                    title_lower = title.lower()
-                    pos_words   = {"beat", "surge", "rally", "growth", "record", "buy", "upgrade",
-                                   "strong", "profit", "gain", "rose", "raised", "bullish"}
-                    neg_words   = {"miss", "fall", "drop", "decline", "loss", "cut", "downgrade",
-                                   "weak", "concern", "risk", "fell", "lowered", "bearish"}
-                    pos_hits = sum(1 for w in pos_words if w in title_lower)
-                    neg_hits = sum(1 for w in neg_words if w in title_lower)
-                    if pos_hits > neg_hits:
-                        sentiment_badge = '<span style="background:#14532d;color:#86efac;font-size:10px;padding:1px 7px;border-radius:10px;">Positive</span>'
-                    elif neg_hits > pos_hits:
-                        sentiment_badge = '<span style="background:#450a0a;color:#fca5a5;font-size:10px;padding:1px 7px;border-radius:10px;">Negative</span>'
-                    else:
-                        sentiment_badge = '<span style="background:#1e293b;color:#94a3b8;font-size:10px;padding:1px 7px;border-radius:10px;">Neutral</span>'
 
-                    st.markdown(
-                        f"""<div style="padding:8px 0;border-bottom:1px solid #1e293b;">
-                          {sentiment_badge}
-                          <span style="margin-left:8px;">
-                            <a href="{link}" target="_blank"
-                               style="color:#e2e8f0;text-decoration:none;font-size:13px;">
-                              {title}
-                            </a>
-                          </span>
-                          <span style="color:#475569;font-size:11px;margin-left:8px;">
-                            {publisher} · {pub_dt}
-                          </span>
-                        </div>""",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.caption("No recent news found.")
+                    # Keyword sentiment
+                    t_low    = title.lower()
+                    pos_hits = sum(1 for w in {"beat","surge","rally","growth","record","buy",
+                                               "upgrade","strong","profit","gain","rose","raised",
+                                               "bullish","jumps","soars"} if w in t_low)
+                    neg_hits = sum(1 for w in {"miss","fall","drop","decline","loss","cut",
+                                               "downgrade","weak","concern","risk","fell","lowered",
+                                               "bearish","slumps","tumbles"} if w in t_low)
+                    if pos_hits > neg_hits:
+                        badge_bg, badge_fg, badge_lbl = "#14532d", "#86efac", "▲ Positive"
+                    elif neg_hits > pos_hits:
+                        badge_bg, badge_fg, badge_lbl = "#450a0a", "#fca5a5", "▼ Negative"
+                    else:
+                        badge_bg, badge_fg, badge_lbl = "#1e293b", "#94a3b8", "● Neutral"
+
+                    # Use columns to avoid HTML-in-markdown parsing issues
+                    col_badge, col_body = st.columns([1, 7])
+                    with col_badge:
+                        st.markdown(
+                            f'<div style="background:{badge_bg};color:{badge_fg};'
+                            f'font-size:10px;padding:4px 8px;border-radius:8px;'
+                            f'text-align:center;margin-top:4px;">{badge_lbl}</div>',
+                            unsafe_allow_html=True,
+                        )
+                    with col_body:
+                        if link:
+                            st.markdown(f"[{title}]({link})")
+                        else:
+                            st.markdown(title)
+                        meta = " · ".join(x for x in [publisher, pub_dt] if x)
+                        if meta:
+                            st.caption(meta)
+                    shown += 1
+                    if shown >= 6:
+                        break
+            if shown == 0:
+                st.caption("No recent news found for this ticker.")
 
             # ── Remove button ──────────────────────────────────────────────────
             st.markdown("")

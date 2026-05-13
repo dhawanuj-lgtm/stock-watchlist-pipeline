@@ -109,9 +109,10 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/history/ data/accuracy_report.json data/edgar_cik_map.json || true
+          # Include public/data/ so Streamlit Cloud picks up pipeline scores
+          git add data/history/ data/accuracy_report.json data/edgar_cik_map.json public/data/ || true
           # Only commit if there are staged changes
-          git diff --cached --quiet || git commit -m "chore: update score history + accuracy report [skip ci]"
+          git diff --cached --quiet || git commit -m "chore: update score history, accuracy report + dashboard data [skip ci]"
           git push origin HEAD:${{ github.ref_name }} || true
         if: always()
 
