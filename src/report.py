@@ -161,29 +161,30 @@ def generate_report(
   @media (max-width: 640px) {{ .two-col {{ grid-template-columns: 1fr; }} }}
   .section-title {{ font-size: .7rem; font-weight: 600; text-transform: uppercase;
                     letter-spacing: .07em; color: #6c757d; margin-bottom: .6rem; }}
-  .cat-grid {{ display: flex; flex-direction: column; gap: 4px; }}
-  .cat-details {{ border-radius: 6px; overflow: hidden; }}
+  .cat-grid {{ display: flex; flex-direction: column; gap: 3px; }}
+  .cat-details {{ border-radius: 6px; overflow: hidden; background: #1a1a2e; }}
   .cat-details summary {{ display: flex; align-items: center; gap: 8px; font-size: .8rem;
-                          cursor: pointer; padding: 4px 5px; border-radius: 6px;
-                          list-style: none; user-select: none; }}
+                          cursor: pointer; padding: 6px 8px; border-radius: 6px;
+                          list-style: none; user-select: none; color: #c8c8e0; }}
   .cat-details summary::-webkit-details-marker {{ display: none; }}
-  .cat-details summary:hover {{ background: #f0f4f8; }}
-  .cat-details[open] summary {{ background: #f0f4f8; border-radius: 6px 6px 0 0; }}
-  .cat-expand-icon {{ font-size: .6rem; color: #adb5bd; margin-left: 2px; }}
-  .cat-details[open] .cat-expand-icon {{ transform: rotate(90deg); display: inline-block; }}
-  .cat-body {{ background: #f8f9fa; border-radius: 0 0 6px 6px;
-               padding: .4rem .6rem .5rem 2rem; font-size: .75rem;
-               border-top: 1px solid #e9ecef; }}
-  .cat-factor {{ color: #495057; line-height: 1.5; padding: 1px 0; }}
-  .cat-factor::before {{ content: "·"; margin-right: .3rem; color: #adb5bd; }}
-  .cat-flag-bull {{ color: #155724; line-height: 1.5; padding: 1px 0; }}
-  .cat-flag-bear {{ color: #721c24; line-height: 1.5; padding: 1px 0; }}
+  .cat-details summary:hover {{ background: rgba(255,255,255,.07); }}
+  .cat-details[open] summary {{ background: rgba(255,255,255,.07); border-radius: 6px 6px 0 0; }}
+  .cat-expand-icon {{ font-size: .55rem; color: #7070a0; flex-shrink: 0; width: 12px;
+                      display: inline-block; transition: transform .15s; }}
+  .cat-details[open] .cat-expand-icon {{ transform: rotate(90deg); }}
+  .cat-body {{ background: #12122a; border-radius: 0 0 6px 6px;
+               padding: .4rem .6rem .5rem 1.5rem; font-size: .75rem;
+               border-top: 1px solid rgba(255,255,255,.08); }}
+  .cat-factor {{ color: #8888aa; line-height: 1.5; padding: 1px 0; }}
+  .cat-factor::before {{ content: "·"; margin-right: .3rem; color: #5050a0; }}
+  .cat-flag-bull {{ color: #7ec89e; line-height: 1.5; padding: 1px 0; }}
+  .cat-flag-bear {{ color: #f08888; line-height: 1.5; padding: 1px 0; }}
   .cat-flag-bull::before {{ content: "▲"; margin-right: .3rem; font-size: .65rem; }}
   .cat-flag-bear::before {{ content: "▼"; margin-right: .3rem; font-size: .65rem; }}
-  .cat-dot  {{ font-size: .9rem; flex-shrink: 0; }}
-  .cat-name {{ flex: 1; color: #495057; }}
-  .cat-score {{ font-weight: 600; min-width: 28px; text-align: right; }}
-  .cat-bar-wrap {{ flex: 1; height: 6px; background: #e9ecef; border-radius: 3px; overflow: hidden; }}
+  .cat-dot  {{ font-size: .75rem; flex-shrink: 0; }}
+  .cat-name {{ flex: 1; color: #c0c0d8; }}
+  .cat-score {{ font-weight: 700; min-width: 28px; text-align: right; font-size: .85rem; }}
+  .cat-bar-wrap {{ flex: 1; height: 5px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }}
   .cat-bar {{ height: 100%; border-radius: 3px; }}
   .flags {{ display: flex; flex-direction: column; gap: 5px; }}
   .flag {{ font-size: .8rem; padding: .3rem .6rem; border-radius: 5px; line-height: 1.4; }}
@@ -264,25 +265,41 @@ def generate_report(
   /* Sparkline */
   .sparkline-wrap {{ padding: 0 1.25rem .75rem; }}
   .sparkline-label {{ font-size: .65rem; color: #6c757d; margin-bottom: 3px; }}
-  /* Score pills in card header */
-  .score-pills {{ display:flex; gap:.45rem; flex-shrink:0; align-items:center; }}
-  .score-pill {{ display:inline-flex; align-items:baseline; gap:.3rem;
-                 padding:.3rem .85rem; border-radius:20px; white-space:nowrap; line-height:1.35; }}
-  .score-pill-claude {{ background:#d4edda; color:#155724; }}
-  .score-pill-grok   {{ background:#dbeafe; color:#1e3a6e; }}
-  .score-pill-num {{ font-size:1rem; font-weight:700; }}
-  .score-pill-lbl {{ font-size:.72rem; }}
+  /* Score mini-cards in header */
+  .score-cards {{ display:flex; gap:.5rem; flex-shrink:0; align-items:flex-start; }}
+  .score-card {{ padding:.55rem .9rem; border-radius:10px; min-width:150px; max-width:200px; }}
+  .score-card-claude {{ background:#d4edda; }}
+  .score-card-grok   {{ background:#dbeafe; }}
+  .scard-header {{ display:flex; align-items:baseline; gap:.35rem; margin-bottom:.1rem; }}
+  .scard-num {{ font-size:1.25rem; font-weight:700; }}
+  .scard-lbl {{ font-size:.7rem; font-weight:600; opacity:.65; }}
+  .scard-signal {{ font-size:.78rem; font-weight:600; margin-bottom:.15rem; }}
+  .scard-meta   {{ font-size:.68rem; opacity:.8; }}
+  .scard-action {{ font-size:.68rem; margin-top:.25rem; font-style:italic;
+                   opacity:.85; line-height:1.35; }}
+  /* arch-tag (small chip in header sub-row) */
   .arch-tag {{ font-size:.72rem; padding:.2rem .65rem; border-radius:12px;
                border:1px solid #dee2e6; color:#6c757d; white-space:nowrap; }}
-  /* Bull / bear flags strip (pill style) */
-  .flags-strip {{ padding:.5rem 1.25rem .6rem; border-bottom:1px solid #f0f0f0;
-                  display:flex; flex-direction:column; gap:5px; }}
-  .flag-pill {{ display:flex; align-items:center; gap:6px; font-size:.8rem;
-                padding:.3rem .75rem; border-radius:6px; line-height:1.35; }}
-  .flag-pill-bull {{ background:#f0fdf4; color:#166534; }}
-  .flag-pill-bear {{ background:#fef2f2; color:#991b1b; }}
-  .flag-pill-ico  {{ font-size:.65rem; flex-shrink:0; }}
-  /* Grok panel meta row (confidence + horizon pinned at top) */
+  /* Info panel — Thesis / Situation / Action / Insight */
+  .info-panel {{ margin:.75rem 1.25rem .25rem; border:1px solid #e9ecef;
+                 border-radius:8px; overflow:hidden; font-size:.875rem; }}
+  .info-thesis {{ padding:.55rem .9rem; background:#f8f9fa;
+                  border-bottom:1px solid #e9ecef; line-height:1.5; }}
+  .info-sit-act {{ display:grid; grid-template-columns:1fr 1fr; }}
+  @media (max-width:640px) {{ .info-sit-act {{ grid-template-columns:1fr; }} }}
+  .info-sit {{ padding:.5rem .9rem; line-height:1.45; }}
+  .info-act {{ padding:.5rem .9rem; line-height:1.45; border-left:1px solid #e9ecef; }}
+  .info-insight {{ padding:.45rem .9rem; background:#fff3cd;
+                   border-top:1px solid #e9ecef; line-height:1.45; }}
+  .info-kw {{ font-size:.65rem; font-weight:700; text-transform:uppercase;
+              letter-spacing:.06em; color:#6c757d; display:block; margin-bottom:3px; }}
+  /* Right flags panel */
+  .flags-panel {{ padding:.9rem 1.25rem; }}
+  .flags-panel-hdr {{ font-size:.7rem; font-weight:600; text-transform:uppercase;
+                      letter-spacing:.07em; color:#6c757d; margin-bottom:.6rem; }}
+  /* Legacy (kept for compatibility) */
+  .score-pills {{ display:flex; gap:.45rem; flex-shrink:0; align-items:center; }}
+  .flags-strip {{ display:none; }}
   .grok-meta-top  {{ display:flex; gap:1.5rem; margin-bottom:.75rem;
                      padding-bottom:.6rem; border-bottom:1px solid #e9ecef; }}
   .grok-meta-item {{ display:flex; flex-direction:column; gap:1px; }}
@@ -565,16 +582,20 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
             f'<div class="cat-body">{body_lines}</div>'
             if body_lines else ""
         )
-        expand_icon = '<span class="cat-expand-icon">▶</span>' if body_lines else ""
+        # Arrow always left-aligned; invisible spacer when no expandable content
+        expand_icon = (
+            '<span class="cat-expand-icon">▶</span>'
+            if body_lines else
+            '<span class="cat-expand-icon" style="opacity:0">▶</span>'
+        )
 
         cat_rows += f"""
     <details class="cat-details">
       <summary>
-        <span class="cat-dot" style="color:{dot_color}">{dot_ch}</span>
+        {expand_icon}
         <span class="cat-name">{cat_label}</span>
         <div class="cat-bar-wrap"><div class="cat-bar" style="width:{bar_w}%;background:{bar_color}"></div></div>
         <span class="cat-score" style="color:{dot_color}">{cat_result.score:.1f}</span>
-        {expand_icon}
       </summary>
       {cat_body_html}
     </details>"""
@@ -777,8 +798,15 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         f'<div class="grok-reason bear">{f}</div>' for f in gl["bear_flags"]
     )
 
-    # ── Claude pill signal text (short, single-line) ─────────────────────────
-    _claude_pill_map = {
+    # ── Claude conviction + signal text ──────────────────────────────────────
+    _claude_conv = {
+        "green":  "High Conviction",
+        "yellow": "Watch / Hold",
+        "red":    "Caution",
+        "gray":   "Monitoring",
+    }.get(sr.weighted_light, "Hold")
+
+    _claude_sig_map = {
         ("green",  "CONFLUENCE"):    "Strong Buy",
         ("green",  "CONSOLIDATION"): "Buy on Dip",
         ("green",  "SQUEEZE ON"):    "Hold — Pressure",
@@ -792,56 +820,80 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         ("red",    "SQUEEZE ON"):    "Reduce",
         ("red",    "RISK WATCH"):    "Reduce / Exit",
     }
-    claude_sig_text = _claude_pill_map.get((sr.weighted_light, sig.signal), "Hold")
+    claude_sig_text = _claude_sig_map.get((sr.weighted_light, sig.signal), "Hold")
 
-    # Grok pill signal — shorten for single-line display
+    # Grok short signal (single line)
     grok_sig_short = (
         gl["signal"]
         .replace("BUY on Dip / Strong Hold", "Buy on Dip")
         .replace("Reduce / Sell", "Reduce")
     )
 
-    # ── Flags strip (pill-style, replaces the two-col flags section) ─────────
-    flag_pill_items = "".join(
-        f'<div class="flag-pill flag-pill-bull"><span class="flag-pill-ico">▲</span>{f}</div>'
-        for f in (sr.bull_flags or [])
-    ) + "".join(
-        f'<div class="flag-pill flag-pill-bear"><span class="flag-pill-ico">▼</span>{f}</div>'
-        for f in (sr.bear_flags or [])
-    )
-    flags_strip_html = (
-        f'<div class="flags-strip">{flag_pill_items}</div>'
-        if flag_pill_items else ""
-    )
+    # ── Score mini-cards (replace old pills) ─────────────────────────────────
+    score_cards_html = f"""<div class="score-cards">
+  <div class="score-card score-card-claude">
+    <div class="scard-header">
+      <span class="scard-num" style="color:{score_color}">{sr.weighted_score}</span>
+      <span class="scard-lbl" style="color:{score_color}">Claude</span>
+    </div>
+    <div class="scard-signal" style="color:{score_color}">{claude_sig_text}</div>
+    <div class="scard-meta" style="color:{score_color}">{_claude_conv}</div>
+  </div>
+  <div class="score-card score-card-grok">
+    <div class="scard-header">
+      <span class="scard-num" style="color:{gl['sig_color']}">{gl['overall']}</span>
+      <span class="scard-lbl" style="color:{gl['sig_color']}">Grok</span>
+    </div>
+    <div class="scard-signal" style="color:{gl['sig_color']}">{grok_sig_short}</div>
+    <div class="scard-meta" style="color:#1e3a6e">{gl['confidence']}% · {gl['horizon']}</div>
+    <div class="scard-action" style="color:#1e3a6e">{gl['action']}</div>
+  </div>
+</div>"""
 
-    # ── Grok panel — Confidence + Horizon at top, action + key signals ───────
-    grok_panel_html = f"""
-<div class="grok-panel">
-  <div class="grok-hdr">
-    <span class="grok-title">Grok Logic</span>
-    <span class="grok-badge" style="background:{gl['conv_bg']}">{gl['conv_label']}</span>
+    # ── Info panel: Thesis / Situation / Action / Insight ────────────────────
+    insight_row = (
+        f'<div class="info-insight">'
+        f'<span class="info-kw">Insight</span>{sig.divergence}</div>'
+    ) if sig.divergence else ""
+
+    info_panel_html = f"""<div class="info-panel">
+  <div class="info-thesis">
+    <span class="info-kw">Thesis</span>{thesis}
   </div>
-  <div class="grok-meta-top">
-    <div class="grok-meta-item">
-      <span class="grok-meta-lbl">Confidence</span>
-      <span class="grok-meta-val" style="color:{gl['sig_color']}">{gl['confidence']}%</span>
+  <div class="info-sit-act">
+    <div class="info-sit" style="background:{sit_bg};color:{sit_fg}">
+      <span class="info-kw" style="color:{sit_fg};opacity:.75">Situation</span>
+      {situation_text}
     </div>
-    <div class="grok-meta-item">
-      <span class="grok-meta-lbl">Horizon</span>
-      <span class="grok-meta-val" style="font-size:.8rem;color:#495057">{gl['horizon']}</span>
+    <div class="info-act">
+      <span class="info-kw" style="color:#1a5c1a">Action · Grok</span>
+      <span style="color:{gl['sig_color']}">{gl['action']}</span>
     </div>
   </div>
-  <div class="grok-action"><strong>Action:</strong> {gl['action']}</div>
-  <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
-              color:#6c757d;margin:.6rem 0 .3rem">Key Signals</div>
-  <div style="margin-bottom:.5rem">{reasons_html}</div>
+  {insight_row}
+</div>"""
+
+    # ── Right panel: bull / bear flags (replaces old Grok panel) ─────────────
+    bull_flags_panel = "".join(
+        f'<div class="flag flag-bull" style="margin-bottom:5px">▲ {f}</div>'
+        for f in (sr.bull_flags or [])
+    ) or '<div class="flag flag-bull" style="opacity:.5">No bull flags detected</div>'
+    bear_flags_panel = "".join(
+        f'<div class="flag flag-bear" style="margin-bottom:5px">▼ {f}</div>'
+        for f in (sr.bear_flags or [])
+    ) or '<div class="flag flag-bear" style="opacity:.5">No bear flags detected</div>'
+
+    flags_panel_html = f"""<div class="flags-panel">
+  <div class="flags-panel-hdr">Key Signals</div>
+  {bull_flags_panel}
+  {bear_flags_panel}
 </div>"""
 
     return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem">
-  <div class="card-hdr" style="flex-wrap:wrap;gap:.5rem">
+  <div class="card-hdr" style="flex-wrap:wrap;gap:.5rem;align-items:flex-start">
     <div style="min-width:0;flex:1">
       <div class="ticker-name">{r['ticker']} &nbsp;<span style="font-weight:400;font-size:.9rem;color:#6c757d">{r.get('name','')}</span></div>
-      <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
+      <div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
         <span class="arch-tag">{archetype_label} · {data.get('sector','—')}</span>
         <span class="signal-badge" style="{sig_style}">{sig.signal}</span>
         {flip_html}
@@ -849,25 +901,10 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         <span style="font-size:.7rem;color:#adb5bd">{thesis_updated}</span>
       </div>
     </div>
-    <div class="score-pills">
-      <span class="score-pill score-pill-claude">
-        <span class="score-pill-num">{sr.weighted_score}</span>
-        <span class="score-pill-lbl">Claude · {claude_sig_text}</span>
-      </span>
-      <span class="score-pill score-pill-grok">
-        <span class="score-pill-num">{gl['overall']}</span>
-        <span class="score-pill-lbl">Grok · {grok_sig_short}</span>
-      </span>
-    </div>
+    {score_cards_html}
   </div>
 
-  <div class="thesis"><strong>Thesis:</strong> {thesis}</div>
-
-  {situation_html}
-
-  {divergence_html}
-
-  {flags_strip_html}
+  {info_panel_html}
 
   <div class="card-body-grid">
     <div>
@@ -878,7 +915,7 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         <div class="cat-grid">{cat_rows}</div>
       </div>
     </div>
-    {grok_panel_html}
+    {flags_panel_html}
   </div>
 </div>"""
 
