@@ -140,6 +140,74 @@ def generate_ai_thesis(ticker: str, score: dict) -> str | None:
         return None
 
 
+@st.cache_data(ttl=3600, show_spinner=False)
+def fetch_finnhub(ticker: str) -> dict:
+    """Fetch Finnhub data: analyst recommendations, earnings surprises, news sentiment."""
+    key = os.environ.get("FINNHUB_API_KEY")
+    if not key:
+        return {}
+    try:
+        import requests as _req
+        base    = "https://finnhub.io/api/v1"
+        headers = {"X-Finnhub-Token": key}
+        result  = {}
+
+        r = _req.get(f"{base}/stock/recommendation?symbol={ticker}", headers=headers, timeout=8)
+        if r.ok and r.json():
+            result["recommendations"] = r.json()[:3]          # last 3 months
+
+        r = _req.get(f"{base}/stock/earnings?symbol={ticker}", headers=headers, timeout=8)
+        if r.ok and r.json():
+            result["earnings"] = r.json()[:4]                 # last 4 quarters
+
+        r = _req.get(f"{base}/news-sentiment?symbol={ticker}", headers=headers, timeout=8)
+        if r.ok:
+            data = r.json()
+            if data.get("sentiment"):
+                result["sentiment"] = data["sentiment"]
+                result["buzz"]      = data.get("buzz", {})
+
+        return result
+    except Exception:
+        return {}
+
+
+@st.cache_data(ttl=7200, show_spinner=False)
+def fetch_macro_context() -> dict:
+    """Fetch macro snapshot from FRED: Fed Funds Rate, 10Y yield, CPI YoY."""
+    fred_key = os.environ.get("FRED_API_KEY", "")
+    try:
+        import requests as _req
+        base = "https://api.stlouisfed.org/fred/series/observations"
+
+        def _get(series_id, limit=1):
+            params = {"series_id": series_id, "sort_order": "desc",
+                      "limit": limit, "file_type": "json"}
+            if fred_key:
+                params["api_key"] = fred_key
+            r = _req.get(base, params=params, timeout=8)
+            return [o for o in r.json().get("observations", []) if o.get("value") != "."] if r.ok else []
+
+        result = {}
+        fed = _get("FEDFUNDS")
+        if fed:
+            result["fed_rate"] = float(fed[0]["value"])
+            result["fed_date"] = fed[0]["date"]
+
+        t10 = _get("DGS10")
+        if t10:
+            result["t10y"] = float(t10[0]["value"])
+
+        cpi = _get("CPIAUCSL", limit=13)
+        if len(cpi) >= 13:
+            result["cpi_yoy"] = round(
+                (float(cpi[0]["value"]) - float(cpi[12]["value"])) / float(cpi[12]["value"]) * 100, 1
+            )
+        return result
+    except Exception:
+        return {}
+
+
 def _rsi(close: pd.Series, period: int = 14) -> float | None:
     if len(close) < period + 1:
         return None
@@ -939,6 +1007,29 @@ def tab_analyze(manifest: dict):
     st.markdown("### ⚡ Live On-Demand Analysis")
     st.caption("Type any ticker — data fetched live from Yahoo Finance via Python (no CORS).")
 
+    # ── Macro context banner ────────────────────────────────────────────────────
+    macro = fetch_macro_context()
+    if macro:
+        parts = []
+        if "fed_rate" in macro:
+            parts.append(f"Fed Rate: <b>{macro['fed_rate']:.2f}%</b>")
+        if "t10y" in macro:
+            parts.append(f"10Y Yield: <b>{macro['t10y']:.2f}%</b>")
+        if "cpi_yoy" in macro:
+            cpi   = macro["cpi_yoy"]
+            cpi_c = "#fca5a5" if cpi > 3.5 else ("#86efac" if cpi < 2.5 else "#fbbf24")
+            parts.append(f'CPI: <b style="color:{cpi_c};">{cpi}% YoY</b>')
+        if parts:
+            st.markdown(
+                f'<div style="background:#1e293b;border:1px solid #334155;border-radius:6px;'
+                f'padding:8px 16px;font-size:12px;color:#94a3b8;margin-bottom:16px;">'
+                f'<span style="color:#64748b;font-weight:600;text-transform:uppercase;'
+                f'letter-spacing:.05em;font-size:10px;">MACRO CONTEXT</span>'
+                f'&nbsp;&nbsp;' + '&nbsp; · &nbsp;'.join(parts) +
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+
     # ── Input ───────────────────────────────────────────────────────────────────
     c1, c2 = st.columns([3, 1])
     with c1:
@@ -1031,13 +1122,13 @@ def tab_analyze(manifest: dict):
             with col_score:
                 score_c = GREEN if overall >= 7 else (YELLOW if overall >= 4.5 else RED)
                 st.markdown(
-                    f"""<div style="background:#0f2a1a;border:1px solid {score_c};
-                        border-radius:10px;padding:12px 16px;">
+                    f"""<div style="background:#1e293b;border-left:4px solid {score_c};
+                        border-radius:8px;padding:12px 16px;">
                       <div style="font-size:32px;font-weight:800;color:{score_c};">{overall}</div>
-                      <div style="font-size:11px;color:#86efac;font-weight:700;margin:2px 0;">
+                      <div style="font-size:11px;color:#64748b;font-weight:600;margin:2px 0;">
                         {sig_label}
                       </div>
-                      <div style="font-size:10px;color:#4ade80;">
+                      <div style="font-size:11px;color:#94a3b8;">
                         {_pct_fmt(upside)} analyst upside
                       </div>
                     </div>""",
@@ -1046,15 +1137,15 @@ def tab_analyze(manifest: dict):
 
             with col_action:
                 st.markdown(
-                    f"""<div style="background:#1a1535;border:1px solid #4f46e5;
-                        border-radius:10px;padding:12px 16px;">
-                      <div style="font-size:14px;font-weight:700;color:#a78bfa;">
+                    f"""<div style="background:#1e293b;border:1px solid #334155;
+                        border-radius:8px;padding:12px 16px;">
+                      <div style="font-size:14px;font-weight:600;color:#f1f5f9;">
                         {rec_label}
                       </div>
-                      <div style="font-size:10px;color:#6d28d9;margin-top:4px;">
+                      <div style="font-size:11px;color:#64748b;margin-top:4px;">
                         {_fmt_large(_sf(info.get('marketCap')))} mkt cap
                       </div>
-                      <div style="font-size:10px;color:#7c3aed;margin-top:2px;">
+                      <div style="font-size:11px;color:#64748b;margin-top:2px;">
                         {int(round(rec*10))/10 if rec else '—'} analyst consensus
                       </div>
                     </div>""",
@@ -1075,13 +1166,13 @@ def tab_analyze(manifest: dict):
                     + f". Analyst rating: {rec_label}."
                 )
             st.markdown(
-                f"""<div style="border-left:3px solid #eab308;background:#1c1a0a;
+                f"""<div style="border-left:3px solid {INDIGO};background:#1e293b;
                     border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;">
-                  <div style="font-size:10px;color:#eab308;font-weight:700;
+                  <div style="font-size:10px;color:{INDIGO};font-weight:700;
                       letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">
                     THESIS
                   </div>
-                  <div style="color:#fef9c3;font-size:14px;line-height:1.6;">{thesis}</div>
+                  <div style="color:#cbd5e1;font-size:14px;line-height:1.6;">{thesis}</div>
                 </div>""",
                 unsafe_allow_html=True,
             )
@@ -1090,11 +1181,11 @@ def tab_analyze(manifest: dict):
             col_sit, col_act = st.columns(2)
             with col_sit:
                 st.markdown(
-                    f"""<div style="background:#0c1a2e;border:1px solid #1e3a5f;
+                    f"""<div style="background:#1e293b;border:1px solid #334155;
                         border-radius:8px;padding:12px 14px;min-height:90px;">
-                      <div style="font-size:10px;color:#60a5fa;font-weight:700;
+                      <div style="font-size:10px;color:#64748b;font-weight:700;
                           letter-spacing:.1em;margin-bottom:6px;">SITUATION</div>
-                      <div style="color:#93c5fd;font-size:13px;line-height:1.5;">
+                      <div style="color:#cbd5e1;font-size:13px;line-height:1.5;">
                         {_situation_text(overall, rsi_val, vs50)}
                       </div>
                     </div>""",
@@ -1102,11 +1193,11 @@ def tab_analyze(manifest: dict):
                 )
             with col_act:
                 st.markdown(
-                    f"""<div style="background:#1a0c2e;border:1px solid #3b1f6e;
+                    f"""<div style="background:#1e293b;border:1px solid #334155;
                         border-radius:8px;padding:12px 14px;min-height:90px;">
-                      <div style="font-size:10px;color:#a78bfa;font-weight:700;
+                      <div style="font-size:10px;color:#64748b;font-weight:700;
                           letter-spacing:.1em;margin-bottom:6px;">ACTION</div>
-                      <div style="color:#c4b5fd;font-size:13px;line-height:1.5;">
+                      <div style="color:#cbd5e1;font-size:13px;line-height:1.5;">
                         {_action_text(overall, upside, vs50)}
                       </div>
                     </div>""",
@@ -1116,11 +1207,11 @@ def tab_analyze(manifest: dict):
             # ══ INSIGHT BAR ═══════════════════════════════════════════════════
             insight = _insight_text(overall, rsi_val, vs50, upside, sig_label)
             st.markdown(
-                f"""<div style="background:#1c1700;border-left:3px solid #eab308;
-                    padding:10px 14px;border-radius:0 6px 6px 0;margin:10px 0;">
-                  <span style="font-size:10px;color:#eab308;font-weight:700;
+                f"""<div style="background:#1e293b;border:1px solid #334155;
+                    padding:10px 14px;border-radius:6px;margin:10px 0;">
+                  <span style="font-size:10px;color:#64748b;font-weight:700;
                       text-transform:uppercase;letter-spacing:.08em;">INSIGHT &nbsp;</span>
-                  <span style="color:#fef08a;font-size:13px;">{insight}</span>
+                  <span style="color:#94a3b8;font-size:13px;">{insight}</span>
                 </div>""",
                 unsafe_allow_html=True,
             )
@@ -1189,20 +1280,115 @@ def tab_analyze(manifest: dict):
                 )
                 for flag in score.get("bull_flags", []):
                     st.markdown(
-                        f'<div style="background:#052e16;border:1px solid #166534;'
-                        f'border-radius:6px;padding:6px 10px;margin-bottom:5px;'
+                        f'<div style="background:#1e293b;border-left:3px solid #22c55e;'
+                        f'border-radius:0 6px 6px 0;padding:6px 10px;margin-bottom:5px;'
                         f'font-size:12px;color:#86efac;">▲ {flag}</div>',
                         unsafe_allow_html=True,
                     )
                 for flag in score.get("bear_flags", []):
                     st.markdown(
-                        f'<div style="background:#450a0a;border:1px solid #7f1d1d;'
-                        f'border-radius:6px;padding:6px 10px;margin-bottom:5px;'
+                        f'<div style="background:#1e293b;border-left:3px solid #ef4444;'
+                        f'border-radius:0 6px 6px 0;padding:6px 10px;margin-bottom:5px;'
                         f'font-size:12px;color:#fca5a5;">▼ {flag}</div>',
                         unsafe_allow_html=True,
                     )
                 if not score.get("bull_flags") and not score.get("bear_flags"):
                     st.caption("No strong signals detected.")
+
+            # ══ FINNHUB MARKET INTELLIGENCE ══════════════════════════════════
+            fh = fetch_finnhub(tkr)
+            if fh:
+                st.markdown(
+                    '<div style="font-size:10px;color:#64748b;font-weight:700;'
+                    'letter-spacing:.1em;text-transform:uppercase;margin:16px 0 10px;">'
+                    'MARKET INTELLIGENCE</div>',
+                    unsafe_allow_html=True,
+                )
+                col_rec, col_earn, col_sent = st.columns(3)
+
+                with col_rec:
+                    recs = fh.get("recommendations", [])
+                    if recs:
+                        latest = recs[0]
+                        total  = sum(latest.get(k, 0) for k in
+                                     ["strongBuy","buy","hold","sell","strongSell"])
+                        buy_pct  = (latest.get("strongBuy",0) + latest.get("buy",0)) / max(total,1) * 100
+                        hold_pct = latest.get("hold",0) / max(total,1) * 100
+                        sell_pct = (latest.get("sell",0) + latest.get("strongSell",0)) / max(total,1) * 100
+                        period   = latest.get("period","")
+                        # mini horizontal bar
+                        bar_html = (
+                            f'<div style="background:#1e293b;border:1px solid #334155;'
+                            f'border-radius:8px;padding:12px 14px;">'
+                            f'<div style="font-size:10px;color:#64748b;font-weight:700;'
+                            f'margin-bottom:10px;">ANALYST RECS ({total} analysts)</div>'
+                            f'<div style="font-size:12px;color:#86efac;margin-bottom:4px;">'
+                            f'▲ Buy &nbsp;<b>{buy_pct:.0f}%</b></div>'
+                            f'<div style="height:5px;background:#334155;border-radius:3px;margin-bottom:8px;">'
+                            f'<div style="width:{buy_pct:.0f}%;height:5px;background:#22c55e;border-radius:3px;"></div></div>'
+                            f'<div style="font-size:12px;color:#94a3b8;margin-bottom:4px;">'
+                            f'● Hold &nbsp;<b>{hold_pct:.0f}%</b></div>'
+                            f'<div style="height:5px;background:#334155;border-radius:3px;margin-bottom:8px;">'
+                            f'<div style="width:{hold_pct:.0f}%;height:5px;background:#64748b;border-radius:3px;"></div></div>'
+                            f'<div style="font-size:12px;color:#fca5a5;margin-bottom:4px;">'
+                            f'▼ Sell &nbsp;<b>{sell_pct:.0f}%</b></div>'
+                            f'<div style="height:5px;background:#334155;border-radius:3px;margin-bottom:8px;">'
+                            f'<div style="width:{sell_pct:.0f}%;height:5px;background:#ef4444;border-radius:3px;"></div></div>'
+                            f'<div style="font-size:10px;color:#475569;margin-top:4px;">{period}</div>'
+                            f'</div>'
+                        )
+                        st.markdown(bar_html, unsafe_allow_html=True)
+
+                with col_earn:
+                    earnings = fh.get("earnings", [])
+                    if earnings:
+                        earn_html = (
+                            '<div style="background:#1e293b;border:1px solid #334155;'
+                            'border-radius:8px;padding:12px 14px;">'
+                            '<div style="font-size:10px;color:#64748b;font-weight:700;'
+                            'margin-bottom:10px;">EARNINGS SURPRISE</div>'
+                        )
+                        for eq in earnings[:4]:
+                            actual  = eq.get("actual")
+                            est     = eq.get("estimate")
+                            period  = eq.get("period","")
+                            if actual is not None and est is not None and est != 0:
+                                surprise = (actual - est) / abs(est) * 100
+                                icon  = "▲" if surprise >= 0 else "▼"
+                                color = "#86efac" if surprise >= 0 else "#fca5a5"
+                                earn_html += (
+                                    f'<div style="display:flex;justify-content:space-between;'
+                                    f'font-size:12px;margin-bottom:6px;">'
+                                    f'<span style="color:#64748b;">{period}</span>'
+                                    f'<span style="color:{color};">{icon} {surprise:+.1f}%</span>'
+                                    f'</div>'
+                                )
+                        earn_html += '</div>'
+                        st.markdown(earn_html, unsafe_allow_html=True)
+
+                with col_sent:
+                    sentiment = fh.get("sentiment", {})
+                    buzz      = fh.get("buzz", {})
+                    if sentiment:
+                        bull_pct  = sentiment.get("bullishPercent", 0) * 100
+                        bear_pct  = sentiment.get("bearishPercent", 0) * 100
+                        articles  = buzz.get("articlesInLastWeek", 0)
+                        buzz_score= buzz.get("buzz", 0)
+                        bull_c    = "#86efac" if bull_pct > 55 else ("#fca5a5" if bull_pct < 40 else "#94a3b8")
+                        st.markdown(
+                            f'<div style="background:#1e293b;border:1px solid #334155;'
+                            f'border-radius:8px;padding:12px 14px;">'
+                            f'<div style="font-size:10px;color:#64748b;font-weight:700;'
+                            f'margin-bottom:10px;">NEWS SENTIMENT</div>'
+                            f'<div style="font-size:24px;font-weight:700;color:{bull_c};">'
+                            f'{bull_pct:.0f}%</div>'
+                            f'<div style="font-size:12px;color:#64748b;margin-bottom:8px;">Bullish</div>'
+                            f'<div style="font-size:12px;color:#94a3b8;">{bear_pct:.0f}% Bearish</div>'
+                            f'<div style="font-size:11px;color:#475569;margin-top:8px;">'
+                            f'{articles} articles · Buzz {buzz_score:.1f}x</div>'
+                            f'</div>',
+                            unsafe_allow_html=True,
+                        )
 
             st.markdown("---")
 
