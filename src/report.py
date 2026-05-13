@@ -279,7 +279,8 @@ def generate_report(
 
 <footer>Scores update on archetype-weighted framework. Thesis scores refresh monthly. Technical signals weekly.<br>
 Data: yfinance · SEC EDGAR · FRED · NewsAPI · Finnhub — all free tier &nbsp;|&nbsp; Accuracy: 60-day signal hit rate vs SPY+2%<br>
-Activate Finnhub / Telegram by adding secrets to GitHub Actions.</footer>
+Activate Finnhub / Telegram by adding secrets to GitHub Actions.<br>
+<span style="font-size:.65rem;color:#ced4da">Built {run_date} · pipeline v3</span></footer>
 </body>
 </html>"""
 
