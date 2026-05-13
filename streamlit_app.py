@@ -1295,6 +1295,64 @@ def tab_analyze(manifest: dict):
                 if not score.get("bull_flags") and not score.get("bear_flags"):
                     st.caption("No strong signals detected.")
 
+            # ══ PIPELINE CATEGORY BREAKDOWN (when pipeline data is available) ═
+            pipeline_ticker_json = load_ticker_json(tkr)
+            if pipeline_ticker_json:
+                # cat_scores = {cat_id: {"score": float, "light": str}, ...}
+                cat_scores_raw = pipeline_ticker_json.get("cat_scores", {})
+                cats = {k: v.get("score", 5.0) for k, v in cat_scores_raw.items() if isinstance(v, dict)}
+                if cats:
+                    st.markdown(
+                        '<div style="font-size:10px;color:#64748b;font-weight:700;'
+                        'letter-spacing:.1em;text-transform:uppercase;margin:14px 0 8px;">'
+                        'PIPELINE CATEGORY DETAIL '
+                        '<span style="font-weight:400;color:#475569;font-size:9px;text-transform:none;">'
+                        '(from last pipeline run)</span></div>',
+                        unsafe_allow_html=True,
+                    )
+                    cat_labels = {
+                        "fundamentals":  "Fundamentals",
+                        "valuation":     "Valuation",
+                        "technical":     "Technical",
+                        "sentiment":     "Sentiment",
+                        "management":    "Management",
+                        "moat":          "Moat",
+                        "partnerships":  "Partnerships",
+                        "macro":         "Macro",
+                        "catalysts":     "Catalysts",
+                        "risk":          "Risk",
+                        "institutional": "Institutional",
+                    }
+                    cols_per_row = 2
+                    cat_items = [(cat_labels.get(k, k), v) for k, v in cats.items() if isinstance(v, (int, float))]
+                    rows = [cat_items[i:i+cols_per_row] for i in range(0, len(cat_items), cols_per_row)]
+                    for row in rows:
+                        rcols = st.columns(cols_per_row)
+                        for j, (lbl, val) in enumerate(row):
+                            with rcols[j]:
+                                fc = GREEN if val >= 7 else (YELLOW if val >= 4.5 else RED)
+                                bar_w = int(val * 10)
+                                hint = "High" if val >= 7 else ("Moderate" if val >= 4.5 else "Low")
+                                st.markdown(
+                                    f"""<div style="margin-bottom:8px;">
+                                      <div style="display:flex;justify-content:space-between;
+                                          margin-bottom:4px;">
+                                        <span style="color:#94a3b8;font-size:12px;">{lbl}</span>
+                                        <span style="color:{fc};font-size:12px;font-weight:700;">
+                                          {val:.1f}
+                                          <span style="font-size:10px;font-weight:400;color:#64748b;">
+                                            · {hint}
+                                          </span>
+                                        </span>
+                                      </div>
+                                      <div style="background:#1e293b;border-radius:4px;height:5px;">
+                                        <div style="width:{bar_w}%;background:{fc};
+                                            border-radius:4px;height:5px;"></div>
+                                      </div>
+                                    </div>""",
+                                    unsafe_allow_html=True,
+                                )
+
             # ══ FINNHUB MARKET INTELLIGENCE ══════════════════════════════════
             fh = fetch_finnhub(tkr)
             if fh:

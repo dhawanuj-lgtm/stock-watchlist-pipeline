@@ -11,6 +11,7 @@ Enterprise-grade self-contained public/index.html with:
   • Sorted by weighted conviction score descending
 """
 
+import math
 from pathlib import Path
 from datetime import datetime
 
@@ -611,6 +612,169 @@ def _situation_summary(score: float, signal: str, trend: str, arch: str,
     )
 
 
+def _svg_gauge(score: float, light: str) -> str:
+    """
+    Pure-SVG semicircle gauge for the score (0–10).
+    No external libraries — fully self-contained in the HTML.
+    """
+    cx, cy, r = 75, 78, 55
+    nl = 46  # needle length
+
+    color = {"green": "#22c55e", "yellow": "#eab308", "red": "#ef4444", "gray": "#6b7280"}[light]
+
+    def pt(deg: float):
+        rad = math.radians(deg)
+        return cx + r * math.cos(rad), cy - r * math.sin(rad)
+
+    def arc(d_start: float, d_end: float, stroke: str, width: int = 9, opacity: float = 1.0) -> str:
+        """Arc from d_start° to d_end° (math convention, counter-clockwise = sweep=0 in SVG y-down)."""
+        sx, sy = pt(d_start)
+        ex, ey = pt(d_end)
+        span = abs(d_start - d_end)
+        large = 1 if span > 180 else 0
+        # sweep=0 means counter-clockwise in SVG y-down coords → goes through the TOP of the semicircle
+        return (
+            f'<path d="M {sx:.2f} {sy:.2f} A {r} {r} 0 {large} 0 {ex:.2f} {ey:.2f}" '
+            f'fill="none" stroke="{stroke}" stroke-width="{width}" '
+            f'stroke-linecap="round" opacity="{opacity}"/>'
+        )
+
+    # Background track: two quarter-arcs avoids the degenerate 180° case
+    tx, ty = pt(90)  # top of semicircle = (75, 23)
+    lx, ly = pt(180)
+    rx_p, ry_p = pt(0)
+    bg = (
+        f'<path d="M {lx:.2f} {ly:.2f} A {r} {r} 0 0 0 {tx:.2f} {ty:.2f} '
+        f'A {r} {r} 0 0 0 {rx_p:.2f} {ry_p:.2f}" '
+        f'fill="none" stroke="#1e293b" stroke-width="11" stroke-linecap="round"/>'
+    )
+
+    # Colored zone bands (dim tint showing red / yellow / green regions)
+    # Red  zone: score 0 – 4.5  → degrees 180° – 99°
+    # Yellow zone: score 4.5 – 7.0 → degrees 99° – 54°
+    # Green  zone: score 7.0 – 10  → degrees 54° – 0°
+    z_red    = arc(180, 99,  "#ef4444", 8, 0.28)
+    z_yellow = arc(99,  54,  "#eab308", 8, 0.28)
+    z_green  = arc(54,  0,   "#22c55e", 8, 0.28)
+
+    # Active filled arc (from 180° down to score position)
+    score_angle = max(0.5, 180 - score * 18)  # prevent 0° ambiguity at score=10
+    active = arc(180, score_angle, color, 8, 1.0) if score > 0 else ""
+
+    # Needle
+    na = math.radians(score_angle)
+    nx = cx + nl * math.cos(na)
+    ny = cy - nl * math.sin(na)
+    needle = (
+        f'<line x1="{cx}" y1="{cy}" x2="{nx:.2f}" y2="{ny:.2f}" '
+        f'stroke="{color}" stroke-width="2.5" stroke-linecap="round"/>'
+    )
+    dot = f'<circle cx="{cx}" cy="{cy}" r="4.5" fill="{color}"/>'
+    inner_dot = f'<circle cx="{cx}" cy="{cy}" r="2" fill="#0f172a"/>'
+
+    # Text labels
+    score_t = (
+        f'<text x="{cx}" y="{cy + 20}" text-anchor="middle" fill="{color}" '
+        f'font-size="18" font-weight="800" font-family="system-ui,sans-serif">{score}</text>'
+    )
+    label_t = (
+        f'<text x="{cx}" y="{cy + 31}" text-anchor="middle" fill="#475569" '
+        f'font-size="9" font-family="system-ui,sans-serif">/ 10</text>'
+    )
+    l0  = (f'<text x="{lx - 5:.0f}" y="{cy + 13}" text-anchor="end" fill="#475569" '
+           f'font-size="8" font-family="system-ui,sans-serif">0</text>')
+    l10 = (f'<text x="{rx_p + 5:.0f}" y="{cy + 13}" text-anchor="start" fill="#475569" '
+           f'font-size="8" font-family="system-ui,sans-serif">10</text>')
+
+    return (
+        f'<svg viewBox="0 0 150 108" xmlns="http://www.w3.org/2000/svg" '
+        f'style="width:140px;height:101px;display:block;">'
+        f'{bg}{z_red}{z_yellow}{z_green}{active}'
+        f'{needle}{dot}{inner_dot}'
+        f'{score_t}{label_t}{l0}{l10}'
+        f'</svg>'
+    )
+
+
+def _svg_radar(sr) -> str:
+    """
+    Pure-SVG hexagonal spider/radar chart for the 6 Grok Logic factors.
+    No external libraries required.
+    """
+    cats = sr.categories
+
+    def _s(cat_id: str) -> float:
+        cr = cats.get(cat_id)
+        return cr.score if cr else 5.0
+
+    factors = [
+        ("Fund.",   _s("fundamentals")),
+        ("Val.",    _s("valuation")),
+        ("Tech.",   _s("technical")),
+        ("Moat",    _s("moat")),
+        ("Macro",   _s("macro")),
+        ("Senti.",  _s("sentiment")),
+    ]
+
+    W, H   = 160, 160
+    cx, cy = 80, 82
+    max_r  = 55
+    n      = len(factors)
+
+    def vertex(i: int, radius: float):
+        angle = math.radians(-90 + i * 360 / n)
+        return cx + radius * math.cos(angle), cy + radius * math.sin(angle)
+
+    # Grid polygons (25%, 50%, 75%, 100%)
+    grids = []
+    for pct in (0.25, 0.5, 0.75, 1.0):
+        pts = " ".join(f"{vertex(i, max_r * pct)[0]:.1f},{vertex(i, max_r * pct)[1]:.1f}" for i in range(n))
+        grids.append(f'<polygon points="{pts}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>')
+
+    # Axis lines
+    axes = []
+    for i in range(n):
+        vx, vy = vertex(i, max_r)
+        axes.append(f'<line x1="{cx}" y1="{cy}" x2="{vx:.1f}" y2="{vy:.1f}" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>')
+
+    # Score polygon
+    score_pts_list = []
+    for i, (label, score) in enumerate(factors):
+        vx, vy = vertex(i, (score / 10) * max_r)
+        score_pts_list.append(f"{vx:.1f},{vy:.1f}")
+    score_poly = (
+        f'<polygon points="{" ".join(score_pts_list)}" '
+        f'fill="rgba(99,102,241,0.22)" stroke="#6366f1" stroke-width="1.5" stroke-linejoin="round"/>'
+    )
+
+    # Labels + score dots
+    labels = []
+    for i, (label, score) in enumerate(factors):
+        angle = math.radians(-90 + i * 360 / n)
+        lx = cx + (max_r + 13) * math.cos(angle)
+        ly = cy + (max_r + 13) * math.sin(angle)
+        # Anchor: left/right/center
+        if lx < cx - 4:   anchor = "end"
+        elif lx > cx + 4: anchor = "start"
+        else:              anchor = "middle"
+        lc = "#22c55e" if score >= 7 else ("#eab308" if score >= 4.5 else "#ef4444")
+        labels.append(
+            f'<text x="{lx:.1f}" y="{ly:.1f}" text-anchor="{anchor}" '
+            f'dominant-baseline="middle" fill="{lc}" font-size="9" '
+            f'font-weight="600" font-family="system-ui,sans-serif">{label} {score:.1f}</text>'
+        )
+        # dot on polygon vertex
+        dvx, dvy = vertex(i, (score / 10) * max_r)
+        labels.append(f'<circle cx="{dvx:.1f}" cy="{dvy:.1f}" r="2.5" fill="{lc}"/>')
+
+    return (
+        f'<svg viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg" '
+        f'style="width:{W}px;height:{H}px;display:block;">'
+        f'{"".join(grids)}{"".join(axes)}{score_poly}{"".join(labels)}'
+        f'</svg>'
+    )
+
+
 def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
     sr     = r["score_result"]
     sig    = r["signal_result"]
@@ -1115,6 +1279,74 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
   {_sparkline_html(history)}
 </div>"""
 
+    # ── Gauge + Radar + Analyst Consensus row ────────────────────────────────
+    gauge_svg = _svg_gauge(sr.weighted_score, sr.weighted_light)
+    radar_svg = _svg_radar(sr)
+
+    # Analyst consensus from yfinance recommendationMean (1=Strong Buy … 5=Strong Sell)
+    rec_mean = data.get("recommendation")  # float 1–5 or None
+    _rec_labels = {
+        (1.0, 1.5): ("Strong Buy",  "#22c55e"),
+        (1.5, 2.5): ("Buy",         "#86efac"),
+        (2.5, 3.5): ("Hold",        "#eab308"),
+        (3.5, 4.5): ("Sell",        "#f97316"),
+        (4.5, 5.1): ("Strong Sell", "#ef4444"),
+    }
+    rec_label, rec_color = "—", "#6b7280"
+    if rec_mean is not None:
+        for (lo, hi), (lbl, clr) in _rec_labels.items():
+            if lo <= rec_mean < hi:
+                rec_label, rec_color = lbl, clr
+                break
+
+    # Analyst target + upside block
+    tgt_html = ""
+    if data.get("analyst_target"):
+        upside_pct = (analyst_upside or 0) * 100
+        upside_c   = "#22c55e" if upside_pct > 15 else ("#eab308" if upside_pct > 0 else "#ef4444")
+        tgt_html = (
+            f'<div style="margin-top:8px;font-size:.75rem;">'
+            f'<span style="color:#6060a0;">Target &nbsp;</span>'
+            f'<span style="color:#c8c8e0;font-weight:700;">${data["analyst_target"]:.0f}</span>'
+            f'&nbsp;&nbsp;'
+            f'<span style="color:{upside_c};font-weight:700;">{upside_pct:+.0f}% upside</span>'
+            f'</div>'
+        )
+
+    # Number of analysts (yfinance stores this as numberOfAnalystOpinions)
+    n_analysts = data.get("number_of_analyst_opinions") or data.get("numberOfAnalystOpinions") or ""
+    n_label = f"Based on {n_analysts} analysts" if n_analysts else "Wall St. consensus"
+
+    analyst_html = f"""<div style="background:#12122a;border:1px solid rgba(255,255,255,.08);
+        border-radius:8px;padding:.75rem .9rem;min-width:160px;">
+  <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+       color:#6060a0;margin-bottom:.5rem;">ANALYST CONSENSUS</div>
+  <div style="font-size:1.35rem;font-weight:800;color:{rec_color};line-height:1.1;">{rec_label}</div>
+  <div style="font-size:.72rem;color:#6060a0;margin:2px 0 6px;">{n_label}</div>
+  <div style="height:4px;border-radius:2px;background:linear-gradient(to right,#ef4444 0%,#eab308 45%,#22c55e 80%,#22c55e 100%);margin-bottom:4px;position:relative;">
+    {'<div style="position:absolute;top:-3px;left:' + f'{max(0, min(100, (5 - (rec_mean or 3)) / 4 * 100)):.0f}' + '%;transform:translateX(-50%);width:8px;height:8px;background:#fff;border-radius:50%;border:2px solid #1a1a2e;"></div>' if rec_mean else ''}
+  </div>
+  <div style="display:flex;justify-content:space-between;font-size:.65rem;color:#475569;">
+    <span>Buy</span><span>Hold</span><span>Sell</span>
+  </div>
+  {tgt_html}
+</div>"""
+
+    viz_row_html = f"""<div style="display:flex;flex-wrap:wrap;gap:.75rem;padding:.6rem 1.25rem;
+    border-bottom:1px solid rgba(255,255,255,.07);align-items:flex-start;">
+  <div style="text-align:center;">
+    <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+         color:#6060a0;margin-bottom:2px;">SCORE</div>
+    {gauge_svg}
+  </div>
+  <div style="text-align:center;">
+    <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;
+         color:#6060a0;margin-bottom:2px;">FACTORS</div>
+    {radar_svg}
+  </div>
+  {analyst_html}
+</div>"""
+
     return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem;border-left:4px solid {score_border}">
   <div class="card-hdr card-hdr-dark" style="flex-wrap:wrap;gap:.5rem;align-items:flex-start">
     <div style="min-width:0;flex:1">
@@ -1134,6 +1366,8 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
     {info_panel_html}
 
     {metrics_strip_html}
+
+    {viz_row_html}
 
     <div class="card-body-grid">
       <div>
