@@ -329,6 +329,7 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
     </a>
     <button class="btn-ghost btn-sm" onclick="showUpload()">↑ Import CSV</button>
     <button class="btn-ghost btn-sm" onclick="exportAll()">↓ Export</button>
+    <button class="btn-ghost btn-sm" onclick="showApiKeys()" title="Set Finnhub / Alpha Vantage API keys for richer live data">🔑 API Keys</button>
   </div>
 </nav>
 
@@ -473,11 +474,50 @@ body { background: var(--bg); color: var(--text); font-family: -apple-system, Bl
 
   <!-- ── ANALYZE tab ────────────────────────────────────────────── -->
   <div id="tab-analyze" class="tab-panel">
-    <!-- Search bar -->
+
+    <!-- ⚡ LIVE ANALYSIS BOX -->
+    <div style="background:linear-gradient(135deg,rgba(99,102,241,.12),rgba(59,130,246,.08));
+      border:1px solid rgba(99,102,241,.25);border-radius:14px;padding:20px 22px;margin-bottom:22px">
+      <div style="font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#a5b4fc;margin-bottom:4px">
+        ⚡ Live On-Demand Analysis
+      </div>
+      <div style="font-size:.82rem;color:var(--text2);margin-bottom:14px">
+        Type any ticker — fetches live data from Yahoo Finance instantly, no pipeline needed.
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input id="live-ticker-input" type="text" autocomplete="off"
+          placeholder="e.g. GOOGL, AMZN, META…"
+          style="background:var(--bg);border:1px solid rgba(99,102,241,.35);border-radius:10px;
+                 padding:11px 16px;color:var(--text);font-size:.95rem;outline:none;
+                 text-transform:uppercase;width:200px;font-weight:600;letter-spacing:.05em"
+          onkeydown="if(event.key==='Enter')triggerLiveFetch()">
+        <button onclick="triggerLiveFetch()"
+          style="background:rgba(99,102,241,.3);border:1px solid rgba(99,102,241,.5);
+                 border-radius:10px;padding:11px 22px;color:#a5b4fc;font-size:.88rem;
+                 font-weight:700;cursor:pointer;transition:background .15s;white-space:nowrap"
+          onmouseover="this.style.background='rgba(99,102,241,.45)'"
+          onmouseout="this.style.background='rgba(99,102,241,.3)'">
+          Analyze Now →
+        </button>
+        <div id="live-status" style="font-size:.78rem;color:var(--text3)"></div>
+      </div>
+    </div>
+
+    <!-- Live result card -->
+    <div id="live-result" style="margin-bottom:22px"></div>
+
+    <!-- Divider -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div style="flex:1;height:1px;background:var(--bdr)"></div>
+      <span style="font-size:.7rem;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.07em">Pre-analyzed pipeline tickers</span>
+      <div style="flex:1;height:1px;background:var(--bdr)"></div>
+    </div>
+
+    <!-- Manifest search bar -->
     <div style="position:relative;margin-bottom:16px">
       <input id="analyze-search" type="text" class="search-box" autocomplete="off"
-        placeholder="🔍  Search any ticker — e.g. NVDA, TSM, AAPL…"
-        style="font-size:1rem;padding:13px 18px"
+        placeholder="🔍  Filter analyzed tickers — e.g. NVDA, TSM…"
+        style="font-size:.95rem;padding:11px 16px"
         oninput="doSearch(this.value,'az')" onkeydown="searchKey(event,'az')">
       <div id="az-dropdown" class="hidden" style="position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:50;
         background:var(--bg2);border:1px solid rgba(255,255,255,.12);border-radius:10px;
@@ -1512,6 +1552,430 @@ function fmtDate(d) {
 }
 function today() {
   return new Date().toISOString().slice(0,10);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// LIVE ON-DEMAND ANALYSIS
+// Sources: Yahoo Finance (no key) + Finnhub + Alpha Vantage (optional)
+// ─────────────────────────────────────────────────────────────────
+
+// API keys stored in localStorage (user enters once)
+function getLiveKeys() {
+  return {
+    finnhub:      localStorage.getItem('key_finnhub')      || '',
+    alphaVantage: localStorage.getItem('key_alphavantage') || '',
+  };
+}
+
+function triggerLiveFetch() {
+  const ticker = document.getElementById('live-ticker-input').value.trim().toUpperCase();
+  if (!ticker) { document.getElementById('live-ticker-input').focus(); return; }
+  fetchLiveData(ticker);
+}
+
+async function fetchLiveData(ticker) {
+  const statusEl  = document.getElementById('live-status');
+  const resultEl  = document.getElementById('live-result');
+  statusEl.textContent  = 'Fetching…';
+  resultEl.innerHTML    = '';
+
+  try {
+    // ── Source 1: Yahoo Finance (no key, CORS proxy) ──────────────
+    statusEl.textContent = 'Yahoo Finance…';
+    const PROXY = 'https://corsproxy.io/?url=';
+    const YQ    = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}`;
+    const mods  = 'price,summaryDetail,financialData,defaultKeyStatistics,assetProfile,earningsTrend';
+    const yRes  = await fetch(PROXY + encodeURIComponent(`${YQ}?modules=${mods}&corsDomain=finance.yahoo.com`));
+    const yJson = await yRes.json();
+    const yData = yJson?.quoteSummary?.result?.[0];
+    if (!yData) throw new Error('Yahoo Finance returned no data for ' + ticker);
+
+    const price = yData.price            || {};
+    const sd    = yData.summaryDetail    || {};
+    const fd    = yData.financialData    || {};
+    const ks    = yData.defaultKeyStatistics || {};
+    const ap    = yData.assetProfile     || {};
+
+    const raw = v => v?.raw ?? null;
+
+    let d = {
+      ticker,
+      name:            price.longName || price.shortName || ticker,
+      currentPrice:    raw(price.regularMarketPrice),
+      change:          raw(price.regularMarketChange),
+      changePct:       raw(price.regularMarketChangePercent),
+      open:            raw(price.regularMarketOpen),
+      prevClose:       raw(price.regularMarketPreviousClose),
+      volume:          raw(price.regularMarketVolume),
+      avgVolume:       raw(sd.averageVolume),
+      marketCap:       raw(price.marketCap),
+      high52:          raw(sd.fiftyTwoWeekHigh),
+      low52:           raw(sd.fiftyTwoWeekLow),
+      pe:              raw(sd.trailingPE),
+      forwardPE:       raw(sd.forwardPE),
+      dividendYield:   raw(sd.dividendYield),
+      beta:            raw(sd.beta),
+      revenueGrowth:   raw(fd.revenueGrowth),
+      grossMargin:     raw(fd.grossMargins),
+      opMargin:        raw(fd.operatingMargins),
+      profitMargin:    raw(fd.profitMargins),
+      totalRevenue:    raw(fd.totalRevenue),
+      fcf:             raw(fd.freeCashflow),
+      debtToEquity:    raw(fd.debtToEquity),
+      currentRatio:    raw(fd.currentRatio),
+      analystTarget:   raw(fd.targetMeanPrice),
+      analystLow:      raw(fd.targetLowPrice),
+      analystHigh:     raw(fd.targetHighPrice),
+      recommendation:  fd.recommendationKey?.raw || '',
+      numAnalysts:     raw(fd.numberOfAnalystOpinions),
+      eps:             raw(ks.trailingEps),
+      forwardEps:      raw(ks.forwardEps),
+      priceToBook:     raw(ks.priceToBook),
+      shortFloat:      raw(ks.sharesPercentSharesOut),
+      sector:          ap.sector    || '—',
+      industry:        ap.industry  || '—',
+      employees:       ap.fullTimeEmployees || null,
+      description:     ap.longBusinessSummary || '',
+      sources:         ['Yahoo Finance'],
+    };
+
+    // Analyst upside
+    if (d.analystTarget && d.currentPrice)
+      d.analystUpside = (d.analystTarget - d.currentPrice) / d.currentPrice;
+
+    // ── Source 2: Finnhub (if key available) ─────────────────────
+    const { finnhub, alphaVantage } = getLiveKeys();
+    if (finnhub) {
+      try {
+        statusEl.textContent = 'Finnhub…';
+        const [qRes, mRes] = await Promise.all([
+          fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${finnhub}`),
+          fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${finnhub}`),
+        ]);
+        const qData = await qRes.json();
+        const mData = await mRes.json();
+        if (qData.c) d.currentPrice = qData.c;
+        if (qData.dp) d.changePct = qData.dp / 100;
+        if (qData.d)  d.change    = qData.d;
+        const m = mData.metric || {};
+        if (m['52WeekHigh']) d.high52  = m['52WeekHigh'];
+        if (m['52WeekLow'])  d.low52   = m['52WeekLow'];
+        if (m.rsi14)         d.rsi     = m.rsi14;
+        if (m.beta)          d.beta    = m.beta;
+        if (m.roaRfy)        d.roa     = m.roaRfy;
+        if (m.revenueGrowthTTMYoy) d.revenueGrowth = m.revenueGrowthTTMYoy / 100;
+        if (m.grossMarginTTM)      d.grossMargin    = m.grossMarginTTM / 100;
+        if (m.operatingMarginTTM)  d.opMargin       = m.operatingMarginTTM / 100;
+        d.sources.push('Finnhub');
+      } catch {}
+    }
+
+    // ── Source 3: Alpha Vantage (if key available) ────────────────
+    if (alphaVantage) {
+      try {
+        statusEl.textContent = 'Alpha Vantage…';
+        const avRes  = await fetch(`https://www.alphavantage.co/query?function=OVERVIEW&symbol=${ticker}&apikey=${alphaVantage}`);
+        const avData = await avRes.json();
+        if (avData.PEGRatio)        d.peg          = parseFloat(avData.PEGRatio);
+        if (avData.EPS)             d.eps          = parseFloat(avData.EPS);
+        if (avData.RevenuePerShareTTM) d.revenuePerShare = parseFloat(avData.RevenuePerShareTTM);
+        if (avData.ReturnOnAssetsTTM)  d.roa       = parseFloat(avData.ReturnOnAssetsTTM);
+        if (avData.ReturnOnEquityTTM)  d.roe       = parseFloat(avData.ReturnOnEquityTTM);
+        if (avData.QuarterlyRevenueGrowthYOY) d.revenueGrowth = parseFloat(avData.QuarterlyRevenueGrowthYOY);
+        if (avData.GrossProfitTTM && avData.RevenueTTM)
+          d.grossMargin = parseFloat(avData.GrossProfitTTM) / parseFloat(avData.RevenueTTM);
+        if (avData.AnalystTargetPrice) d.analystTarget = parseFloat(avData.AnalystTargetPrice);
+        if (avData.Description && !d.description) d.description = avData.Description;
+        d.sources.push('Alpha Vantage');
+      } catch {}
+    }
+
+    // ── Score ──────────────────────────────────────────────────────
+    d.score = computeQuickScore(d);
+
+    statusEl.textContent = '';
+    resultEl.innerHTML   = renderLiveCard(d);
+
+  } catch (err) {
+    statusEl.textContent = '';
+    resultEl.innerHTML   = `
+      <div style="background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.2);
+        border-radius:10px;padding:16px 20px;font-size:.85rem;color:#f08888">
+        <strong>Could not fetch data for ${ticker}</strong><br>
+        ${err.message}<br>
+        <span style="color:var(--text3);font-size:.78rem">Check the ticker is valid (e.g. NVDA not NVIDIA)</span>
+      </div>`;
+  }
+}
+
+function computeQuickScore(d) {
+  let score = 5.0;
+  const reasons = [];
+
+  // ── Valuation (±1.5) ──────────────────────────────────────────
+  if (d.forwardPE != null) {
+    if      (d.forwardPE < 15)  { score += 1.0; reasons.push('cheap forward P/E'); }
+    else if (d.forwardPE < 25)  { score += 0.4; }
+    else if (d.forwardPE < 35)  { score -= 0.2; }
+    else if (d.forwardPE < 50)  { score -= 0.7; }
+    else                        { score -= 1.2; reasons.push('expensive P/E'); }
+  }
+  if (d.priceToBook != null) {
+    if (d.priceToBook < 3) score += 0.3;
+    if (d.priceToBook > 15) score -= 0.3;
+  }
+
+  // ── Growth (±1.5) ─────────────────────────────────────────────
+  if (d.revenueGrowth != null) {
+    if      (d.revenueGrowth > 0.30) { score += 1.5; reasons.push('strong revenue growth'); }
+    else if (d.revenueGrowth > 0.15) { score += 0.8; }
+    else if (d.revenueGrowth > 0.05) { score += 0.3; }
+    else if (d.revenueGrowth < 0)    { score -= 1.0; reasons.push('declining revenue'); }
+  }
+
+  // ── Profitability (±1.0) ──────────────────────────────────────
+  if (d.grossMargin != null) {
+    if      (d.grossMargin > 0.70) { score += 0.8; reasons.push('exceptional margins'); }
+    else if (d.grossMargin > 0.50) { score += 0.5; }
+    else if (d.grossMargin > 0.30) { score += 0.1; }
+    else                           { score -= 0.4; }
+  }
+  if (d.opMargin != null) {
+    if (d.opMargin > 0.20) score += 0.3;
+    if (d.opMargin < 0)    score -= 0.5;
+  }
+
+  // ── Analyst consensus (±1.0) ──────────────────────────────────
+  if (d.analystUpside != null) {
+    if      (d.analystUpside > 0.30) { score += 1.0; reasons.push('high analyst upside'); }
+    else if (d.analystUpside > 0.15) { score += 0.5; }
+    else if (d.analystUpside > 0.05) { score += 0.1; }
+    else if (d.analystUpside < -0.05){ score -= 0.5; reasons.push('above analyst target'); }
+  }
+
+  // ── Technical (±0.5) ─────────────────────────────────────────
+  if (d.rsi != null) {
+    if (d.rsi < 35)       { score += 0.5; reasons.push('oversold RSI'); }
+    else if (d.rsi > 70)  { score -= 0.4; reasons.push('overbought RSI'); }
+  }
+  if (d.high52 && d.low52 && d.currentPrice) {
+    const range52 = d.high52 - d.low52;
+    const pos52   = range52 > 0 ? (d.currentPrice - d.low52) / range52 : 0.5;
+    if (pos52 < 0.3)      score += 0.3; // near 52-week low — potential value
+    if (pos52 > 0.9)      score -= 0.2; // near 52-week high
+    d._pos52 = pos52;
+  }
+
+  // ── Risk (±0.5) ───────────────────────────────────────────────
+  if (d.debtToEquity != null) {
+    if (d.debtToEquity < 0.5)  score += 0.3;
+    if (d.debtToEquity > 3.0)  { score -= 0.5; reasons.push('high leverage'); }
+  }
+  if (d.beta != null) {
+    if (d.beta > 2.5)   score -= 0.3;
+    if (d.beta < 0.7)   score += 0.2;
+  }
+  if (d.shortFloat != null && d.shortFloat > 0.15) {
+    score -= 0.4; reasons.push('high short interest');
+  }
+
+  d._reasons = reasons;
+  return Math.max(1.0, Math.min(10.0, score));
+}
+
+function renderLiveCard(d) {
+  if (!d.currentPrice) return '<div class="empty-state">No price data available</div>';
+
+  const pChgPct = d.changePct ? (d.changePct * 100).toFixed(2) : null;
+  const pChgC   = d.change >= 0 ? '#7ec89e' : '#f08888';
+  const score   = d.score;
+  const sColor  = score >= 7 ? '#7ec89e' : score >= 5 ? '#ffc107' : '#f08888';
+  const sLight  = score >= 7 ? 'green'   : score >= 5 ? 'yellow'  : 'red';
+  const borderC = score >= 7 ? '#28a745' : score >= 5 ? '#ffc107' : '#dc3545';
+
+  const pct  = v => v != null ? (v * 100).toFixed(1) + '%' : '—';
+  const usd  = v => v != null ? '$' + fmtN(v)             : '—';
+  const num  = (v, dp=1) => v != null ? v.toFixed(dp)     : '—';
+  const cap  = v => {
+    if (!v) return '—';
+    if (v >= 1e12) return '$' + (v/1e12).toFixed(2) + 'T';
+    if (v >= 1e9)  return '$' + (v/1e9).toFixed(1)  + 'B';
+    return '$' + fmtN(v);
+  };
+
+  // Analyst rec color
+  const recMap = { strongbuy:'#28a745', buy:'#7ec89e', hold:'#ffc107', sell:'#f08888', strongsell:'#dc3545' };
+  const recCol = recMap[(d.recommendation||'').replace('_','')] || '#9090b0';
+  const recLabel = (d.recommendation||'—').replace('_',' ').toUpperCase();
+
+  // 52w position bar
+  const pos52 = d._pos52 != null ? d._pos52 : null;
+  const bar52 = pos52 != null ? `
+    <div style="margin-top:6px">
+      <div style="display:flex;justify-content:space-between;font-size:.65rem;color:#6060a0;margin-bottom:3px">
+        <span>52w Low $${d.low52?.toFixed(0)||'—'}</span>
+        <span style="color:#9090c0">Position: ${(pos52*100).toFixed(0)}%</span>
+        <span>52w High $${d.high52?.toFixed(0)||'—'}</span>
+      </div>
+      <div style="height:5px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${(pos52*100).toFixed(0)}%;background:${sColor};border-radius:3px;transition:width .6s"></div>
+      </div>
+    </div>` : '';
+
+  // Sources badge
+  const srcBadge = d.sources.map(s =>
+    `<span style="background:rgba(255,255,255,.07);color:#6060a0;font-size:.6rem;padding:1px 7px;border-radius:6px">${s}</span>`
+  ).join(' ');
+
+  // Key bull/bear from reasons
+  const reasonsHtml = (d._reasons || []).map(r =>
+    `<span style="background:rgba(40,167,69,.15);color:#7ec89e;font-size:.72rem;padding:3px 8px;border-radius:6px">${r}</span>`
+  ).join(' ');
+
+  return `
+  <div style="border:1px solid rgba(255,255,255,.1);border-left:4px solid ${borderC};
+    border-radius:12px;overflow:hidden;background:#1a1a2e">
+
+    <!-- Header -->
+    <div style="background:#0f0f24;padding:14px 18px;display:flex;align-items:center;flex-wrap:wrap;gap:10px;border-bottom:1px solid rgba(255,255,255,.07)">
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:1.1rem;font-weight:800;color:#e0e0f0">${d.ticker}</span>
+          <span style="font-size:.72rem;color:#8080a8;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);border-radius:10px;padding:2px 10px">${d.sector}</span>
+          <span style="font-size:.62rem;color:#6060a0">${d.industry}</span>
+        </div>
+        <div style="font-size:.8rem;color:#9090b0;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}</div>
+      </div>
+
+      <!-- Score -->
+      <div style="background:rgba(${score>=7?'40,167,69':score>=5?'255,193,7':'220,53,69'},.15);border-radius:10px;padding:10px 16px;text-align:center;min-width:110px">
+        <div style="font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:${sColor};opacity:.7">Quick Score</div>
+        <div style="font-size:1.8rem;font-weight:800;color:${sColor};line-height:1">${score.toFixed(1)}</div>
+        <div style="font-size:.62rem;color:${sColor};opacity:.7">${sLight === 'green' ? 'High conviction' : sLight === 'yellow' ? 'Watch' : 'Caution'}</div>
+      </div>
+
+      <!-- Price -->
+      <div style="text-align:right">
+        <div style="font-size:1.4rem;font-weight:800;color:#e0e0f0">$${d.currentPrice?.toFixed(2)}</div>
+        <div style="font-size:.82rem;font-weight:600;color:${pChgC}">
+          ${d.change >= 0 ? '+' : ''}$${Math.abs(d.change||0).toFixed(2)}
+          (${d.change >= 0 ? '+' : ''}${pChgPct||'—'}%)
+        </div>
+        <div style="font-size:.65rem;color:#6060a0;margin-top:2px">Mkt Cap ${cap(d.marketCap)}</div>
+      </div>
+    </div>
+
+    <!-- Metrics strip -->
+    <div style="background:#12122a;display:flex;flex-wrap:wrap;padding:8px 18px 6px;border-bottom:1px solid rgba(255,255,255,.07);gap:0">
+      ${metricPill('P/E (fwd)', d.forwardPE?.toFixed(1))}
+      ${metricPill('P/E (trail)', d.pe?.toFixed(1))}
+      ${metricPill('P/B', d.priceToBook?.toFixed(1))}
+      ${metricPill('Beta', d.beta?.toFixed(2))}
+      ${metricPill('RSI', d.rsi?.toFixed(0))}
+      ${metricPill('EPS', d.eps != null ? '$'+d.eps.toFixed(2) : null)}
+      ${metricPill('Div Yield', d.dividendYield != null ? pct(d.dividendYield) : null)}
+      ${metricPill('Short %', d.shortFloat != null ? pct(d.shortFloat) : null)}
+    </div>
+
+    <!-- Body grid -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid rgba(255,255,255,.07)">
+
+      <!-- Fundamentals -->
+      <div style="padding:14px 18px;border-right:1px solid rgba(255,255,255,.07)">
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6060a0;margin-bottom:10px">Fundamentals</div>
+        ${fundRow('Revenue', usd(d.totalRevenue))}
+        ${fundRow('Rev Growth YoY', d.revenueGrowth != null ? colorVal(pct(d.revenueGrowth), d.revenueGrowth >= 0) : '—')}
+        ${fundRow('Gross Margin', d.grossMargin != null ? colorVal(pct(d.grossMargin), d.grossMargin > 0.40) : '—')}
+        ${fundRow('Op Margin', d.opMargin != null ? colorVal(pct(d.opMargin), d.opMargin > 0.10) : '—')}
+        ${fundRow('Free Cash Flow', usd(d.fcf))}
+        ${fundRow('Debt/Equity', d.debtToEquity?.toFixed(2) || '—')}
+        ${d.roe != null ? fundRow('Return on Equity', pct(d.roe)) : ''}
+        ${d.roa != null ? fundRow('Return on Assets', pct(d.roa)) : ''}
+        ${bar52}
+      </div>
+
+      <!-- Analyst -->
+      <div style="padding:14px 18px">
+        <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6060a0;margin-bottom:10px">Analyst Consensus</div>
+        ${d.recommendation ? `<div style="display:inline-block;background:${recCol}22;color:${recCol};border:1px solid ${recCol}44;
+          border-radius:8px;padding:4px 12px;font-size:.8rem;font-weight:700;margin-bottom:10px">${recLabel}</div>` : ''}
+        ${fundRow('Price Target', usd(d.analystTarget))}
+        ${fundRow('Upside to Target', d.analystUpside != null ? colorVal(
+            (d.analystUpside >= 0 ? '+' : '') + pct(d.analystUpside), d.analystUpside >= 0.10) : '—')}
+        ${fundRow('Target Range', d.analystLow && d.analystHigh ? `$${d.analystLow?.toFixed(0)} – $${d.analystHigh?.toFixed(0)}` : '—')}
+        ${fundRow('# Analysts', d.numAnalysts || '—')}
+        <div style="margin-top:12px;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#6060a0;margin-bottom:8px">Score Drivers</div>
+        ${reasonsHtml || '<span style="font-size:.75rem;color:#5050a0">Neutral across factors</span>'}
+        <div style="margin-top:12px;font-size:.62rem;color:#5050a0">Sources: ${srcBadge}</div>
+        <div style="margin-top:4px;font-size:.62rem;color:#4040a0">Score is simplified — run pipeline for full analysis</div>
+      </div>
+    </div>
+
+    <!-- Description -->
+    ${d.description ? `
+    <div style="padding:12px 18px">
+      <div style="font-size:.75rem;color:#7070a0;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${d.description}</div>
+    </div>` : ''}
+
+    <!-- Actions -->
+    <div style="padding:10px 18px;background:#0f0f24;border-top:1px solid rgba(255,255,255,.07);display:flex;gap:8px;flex-wrap:wrap">
+      <button onclick="quickAdd('${d.ticker}','portfolio')" class="btn-primary btn-sm">+ Portfolio</button>
+      <button onclick="quickAdd('${d.ticker}','watchlist')" class="btn-ghost btn-sm">+ Watchlist</button>
+      <button onclick="addToCompare('${d.ticker}')" class="btn-ghost btn-sm">⚖ Compare</button>
+      <span style="margin-left:auto;font-size:.7rem;color:#5050a0;align-self:center">
+        ${d.employees ? fmtN(d.employees).replace(/\.00$/,'') + ' employees' : ''}
+      </span>
+    </div>
+  </div>`;
+}
+
+function metricPill(label, val) {
+  if (val == null || val === '—') return '';
+  return `<div style="display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-right:1px solid rgba(255,255,255,.07)">
+    <span style="color:#6060a0;font-size:.68rem">${label}</span>
+    <span style="color:#c8c8e0;font-weight:600;font-size:.8rem">${val}</span>
+  </div>`;
+}
+function fundRow(label, val) {
+  return `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+    <span style="color:#6060a0;font-size:.75rem">${label}</span>
+    <span style="font-size:.8rem;font-weight:600;color:#c8c8e0">${val}</span>
+  </div>`;
+}
+function colorVal(str, good) {
+  return `<span style="color:${good ? '#7ec89e' : '#f08888'}">${str}</span>`;
+}
+
+// ── API Key settings ──────────────────────────────────────────────
+function showApiKeys() {
+  const keys = getLiveKeys();
+  const html = `
+    <div style="position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:70;display:flex;align-items:center;justify-content:center" id="api-modal" onclick="if(event.target===this)this.remove()">
+      <div style="background:var(--bg2);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:24px;width:400px;max-width:95vw">
+        <div style="font-size:.95rem;font-weight:700;margin-bottom:6px">API Keys (optional)</div>
+        <div style="font-size:.78rem;color:var(--text3);margin-bottom:16px;line-height:1.5">
+          Stored locally in your browser. Enables richer data from Finnhub and Alpha Vantage.
+          Yahoo Finance works without any key.
+        </div>
+        <div class="modal-row">
+          <label class="modal-label">Finnhub API Key (free at finnhub.io)</label>
+          <input class="modal-input" id="ak-finnhub" placeholder="your_finnhub_key" value="${keys.finnhub}">
+        </div>
+        <div class="modal-row">
+          <label class="modal-label">Alpha Vantage Key (free at alphavantage.co)</label>
+          <input class="modal-input" id="ak-av" placeholder="your_alpha_vantage_key" value="${keys.alphaVantage}">
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+          <button class="btn-ghost" onclick="document.getElementById('api-modal').remove()">Cancel</button>
+          <button class="btn-primary" onclick="
+            localStorage.setItem('key_finnhub', document.getElementById('ak-finnhub').value.trim());
+            localStorage.setItem('key_alphavantage', document.getElementById('ak-av').value.trim());
+            document.getElementById('api-modal').remove();
+            alert('Keys saved!');">Save Keys</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
 }
 
 // ─────────────────────────────────────────────────────────────────
