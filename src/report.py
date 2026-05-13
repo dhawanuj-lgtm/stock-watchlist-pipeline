@@ -290,6 +290,75 @@ Activate Finnhub / Telegram by adding secrets to GitHub Actions.<br>
     return html
 
 
+def _situation_summary(score: float, signal: str, trend: str, arch: str) -> tuple:
+    """
+    Returns (text, bg_color, text_color) — a plain-English action prompt
+    derived from score + signal combination, with archetype-aware phrasing.
+    """
+    trend_note = ""
+    if trend == "up":
+        trend_note = " Score improving — momentum building."
+    elif trend == "down":
+        trend_note = " Score declining — watch closely."
+
+    dca_phrase = "Good for adding in tranches on dips" if arch in ("mega", "largeg") else "Consider a starter position"
+
+    if score >= 7.0:
+        if signal == "CONFLUENCE":
+            return (
+                f"Thesis and technicals aligned — strongest setup for new or larger positions.{trend_note}",
+                "#d4edda", "#155724",
+            )
+        if signal == "CONSOLIDATION":
+            return (
+                f"High-quality business in a holding pattern. {dca_phrase}, no urgency to chase.{trend_note}",
+                "#e8f4f8", "#0c5460",
+            )
+        if signal == "SQUEEZE ON":
+            return (
+                f"Strong fundamentals under technical pressure. Hold existing position — avoid adding until pressure clears.{trend_note}",
+                "#fff3cd", "#856404",
+            )
+        if signal == "RISK WATCH":
+            return (
+                f"High-conviction name sending a caution signal. Review position size — something is breaking down.{trend_note}",
+                "#f8d7da", "#721c24",
+            )
+
+    if score >= 5.0:
+        if signal == "CONFLUENCE":
+            return (
+                f"Technicals improving but thesis still developing. Small entry or keep on watchlist.{trend_note}",
+                "#e8f4f8", "#0c5460",
+            )
+        if signal == "CONSOLIDATION":
+            return (
+                f"Mid-conviction, range-bound. Wait for a score improvement or technical breakout before adding.{trend_note}",
+                "#f8f9fa", "#495057",
+            )
+        if signal == "SQUEEZE ON":
+            return (
+                f"Mid-conviction under technical pressure. Not a strong entry — wait for stabilization.{trend_note}",
+                "#fff3cd", "#856404",
+            )
+        if signal == "RISK WATCH":
+            return (
+                f"Moderate conviction with a caution signal. Hold off on adding — watch for stabilization.{trend_note}",
+                "#f8d7da", "#721c24",
+            )
+
+    # score < 5.0
+    if signal == "RISK WATCH":
+        return (
+            "Below conviction threshold with deteriorating signal. Avoid adding — consider reducing.",
+            "#f8d7da", "#721c24",
+        )
+    return (
+        f"Below conviction threshold. Monitor for fundamental improvement before committing capital.{trend_note}",
+        "#f8f9fa", "#6c757d",
+    )
+
+
 def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
     sr     = r["score_result"]
     sig    = r["signal_result"]
@@ -517,6 +586,17 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         for k, v, hint, tip in metrics_raw
     )
 
+    # ── Situation summary (score + signal → plain-English action prompt) ─────────
+    situation_text, sit_bg, sit_fg = _situation_summary(
+        sr.weighted_score, sig.signal, sig.score_trend, sr.archetype
+    )
+    situation_html = (
+        f'<div style="margin:.5rem 1.25rem .25rem;padding:.55rem .9rem;'
+        f'background:{sit_bg};border-radius:6px;font-size:.8rem;'
+        f'color:{sit_fg};line-height:1.5">'
+        f'<strong>Situation:</strong> {situation_text}</div>'
+    )
+
     # Divergence block (only if flipped or thesis ≠ signal)
     divergence_html = ""
     if sig.flipped or sig.divergence:
@@ -548,6 +628,8 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
   </div>
 
   <div class="thesis"><strong>Thesis:</strong> {thesis}</div>
+
+  {situation_html}
 
   {divergence_html}
 
@@ -854,6 +936,58 @@ def _macro_panel(all_results: list[dict]) -> str:
     Add free <code>FRED_API_KEY</code> for accurate 2yr series.
   </div>"""
 
+    # ── Plain-English interpretation ─────────────────────────────────────────
+    interp_lines = []
+    if has_any:
+        # Rate environment
+        if ffr is not None:
+            if ffr <= 3.0:
+                interp_lines.append(f"Rates at {ffr:.2f}% — accommodative. Strong tailwind for growth and spec names.")
+            elif ffr <= 4.0:
+                interp_lines.append(f"Rates at {ffr:.2f}% — moderately restrictive but declining from peak. Growth headwinds are easing.")
+            elif ffr <= 5.0:
+                interp_lines.append(f"Rates at {ffr:.2f}% — still elevated. Spec and small-cap names face a higher discount rate hurdle.")
+            else:
+                interp_lines.append(f"Rates at {ffr:.2f}% — restrictive. High-growth and pre-revenue names are most exposed.")
+
+        # Yield curve
+        if spread is not None:
+            if spread < -0.2:
+                interp_lines.append(f"Yield curve inverted ({spread:+.2f}%) — historically precedes recession 12–18 months out. Favor quality over spec.")
+            elif spread < 0.2:
+                interp_lines.append(f"Yield curve flat ({spread:+.2f}%) — transitioning. Watch for steepening as a green light for risk-on.")
+            else:
+                interp_lines.append(f"Yield curve normal (+{spread:.2f}%) — no recession signal. Credit conditions are healthy.")
+
+        # Portfolio-specific impact: group tickers by archetype from all_results
+        arch_map: dict[str, list[str]] = {}
+        for _r in all_results:
+            _arch = _r.get("score_result").archetype if _r.get("score_result") else "spec"
+            arch_map.setdefault(_arch, []).append(_r["ticker"])
+
+        rate_sensitive = arch_map.get("spec", [])[:5] + arch_map.get("micro", [])[:2]
+        mega_names     = arch_map.get("mega", [])[:4]
+
+        if rate_sensitive and ffr is not None:
+            tickers_str = ", ".join(f"${t}" for t in rate_sensitive[:5])
+            if ffr <= 4.0:
+                interp_lines.append(f"Your most rate-sensitive names ({tickers_str}) benefit most as rates normalise.")
+            else:
+                interp_lines.append(f"Most rate-sensitive in your portfolio: {tickers_str} — these feel high rates hardest.")
+
+        if mega_names:
+            mega_str = ", ".join(f"${t}" for t in mega_names)
+            interp_lines.append(f"Mega-cap names ({mega_str}) are less rate-sensitive and anchored by fundamentals.")
+
+    interp_html = ""
+    if interp_lines:
+        bullets = "".join(f'<div style="padding:2px 0">· {l}</div>' for l in interp_lines)
+        interp_html = (
+            f'<div style="margin-top:.75rem;padding:.6rem .9rem;background:#f8f9fa;'
+            f'border-radius:6px;font-size:.78rem;color:#495057;line-height:1.6">'
+            f'{bullets}</div>'
+        )
+
     return f"""
 <div class="macro-panel">
   <div class="macro-title" style="display:flex;align-items:center;gap:.5rem">
@@ -863,6 +997,7 @@ def _macro_panel(all_results: list[dict]) -> str:
     {items_html}
     <span class="macro-regime" style="background:{regime_bg};color:{regime_fg}">{regime_label}</span>
   </div>
+  {interp_html}
   {setup_note}
 </div>"""
 
