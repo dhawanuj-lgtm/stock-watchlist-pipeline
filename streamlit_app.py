@@ -42,6 +42,17 @@ GRAY   = "#6b7280"
 
 LIGHT_COLORS = {"green": GREEN, "yellow": YELLOW, "red": RED, "gray": GRAY}
 
+
+def _sf(val) -> float | None:
+    """Safe float: returns None for None, NaN, Inf, or non-numeric strings."""
+    if val is None:
+        return None
+    try:
+        f = float(val)
+        return None if (f != f or f == float("inf") or f == float("-inf")) else f
+    except (ValueError, TypeError):
+        return None
+
 # ── Session-state init ─────────────────────────────────────────────────────────
 _DEFAULTS = {
     "portfolio":  [],   # list of {ticker, name, shares, cost_basis}
@@ -113,24 +124,24 @@ def compute_quick_score(data: dict) -> dict:
 
     # ── 1. Valuation ──────────────────────────────────────────────────────────
     v_scores = []
-    pe = info.get("forwardPE") or info.get("trailingPE")
+    pe = _sf(info.get("forwardPE")) or _sf(info.get("trailingPE"))
     if pe and pe > 0:
         if pe < 15:    v_scores.append(9)
         elif pe < 25:  v_scores.append(7)
         elif pe < 40:  v_scores.append(5)
         elif pe < 60:  v_scores.append(3)
         else:          v_scores.append(1)
-    target = info.get("targetMeanPrice")
-    price  = info.get("currentPrice") or info.get("regularMarketPrice")
+    target = _sf(info.get("targetMeanPrice"))
+    price  = _sf(info.get("currentPrice")) or _sf(info.get("regularMarketPrice"))
     upside = None
     if target and price:
         upside = (target - price) / price
-        if upside > 0.30:  v_scores.append(9)
-        elif upside > 0.15: v_scores.append(7)
-        elif upside > 0.05: v_scores.append(5)
+        if upside > 0.30:    v_scores.append(9)
+        elif upside > 0.15:  v_scores.append(7)
+        elif upside > 0.05:  v_scores.append(5)
         elif upside > -0.05: v_scores.append(3)
-        else:               v_scores.append(1)
-    peg = info.get("pegRatio")
+        else:                v_scores.append(1)
+    peg = _sf(info.get("pegRatio"))
     if peg and peg > 0:
         if peg < 0.8:   v_scores.append(10)
         elif peg < 1.2: v_scores.append(8)
@@ -141,14 +152,14 @@ def compute_quick_score(data: dict) -> dict:
 
     # ── 2. Growth ─────────────────────────────────────────────────────────────
     g_scores = []
-    rg = info.get("revenueGrowth")
+    rg = _sf(info.get("revenueGrowth"))
     if rg is not None:
         if rg > 0.30:   g_scores.append(10)
         elif rg > 0.20: g_scores.append(8)
         elif rg > 0.10: g_scores.append(6)
         elif rg > 0.0:  g_scores.append(4)
         else:           g_scores.append(2)
-    eg = info.get("earningsGrowth")
+    eg = _sf(info.get("earningsGrowth"))
     if eg is not None:
         if eg > 0.30:   g_scores.append(9)
         elif eg > 0.15: g_scores.append(7)
@@ -159,22 +170,22 @@ def compute_quick_score(data: dict) -> dict:
 
     # ── 3. Margins & Quality ──────────────────────────────────────────────────
     q_scores = []
-    gm = info.get("grossMargins")
+    gm = _sf(info.get("grossMargins"))
     if gm is not None:
         if gm > 0.60:   q_scores.append(10)
         elif gm > 0.40: q_scores.append(8)
         elif gm > 0.25: q_scores.append(6)
         elif gm > 0.10: q_scores.append(4)
         else:           q_scores.append(2)
-    om = info.get("operatingMargins")
+    om = _sf(info.get("operatingMargins"))
     if om is not None:
         if om > 0.25:   q_scores.append(10)
         elif om > 0.15: q_scores.append(8)
         elif om > 0.05: q_scores.append(5)
         elif om > 0:    q_scores.append(3)
         else:           q_scores.append(1)
-    fcf = info.get("freeCashflow")
-    rev = info.get("totalRevenue")
+    fcf = _sf(info.get("freeCashflow"))
+    rev = _sf(info.get("totalRevenue"))
     if fcf and rev and rev > 0:
         fcf_m = fcf / rev
         if fcf_m > 0.15:   q_scores.append(10)
@@ -187,9 +198,9 @@ def compute_quick_score(data: dict) -> dict:
 
     # ── 4. Analyst sentiment ──────────────────────────────────────────────────
     a_scores = []
-    rec = info.get("recommendationMean")  # 1=Strong Buy, 5=Strong Sell
+    rec = _sf(info.get("recommendationMean"))  # 1=Strong Buy, 5=Strong Sell
     if rec:
-        if rec <= 1.5:  a_scores.append(9)
+        if rec <= 1.5:   a_scores.append(9)
         elif rec <= 2.0: a_scores.append(7)
         elif rec <= 2.5: a_scores.append(5)
         elif rec <= 3.0: a_scores.append(3)
@@ -251,6 +262,7 @@ def compute_quick_score(data: dict) -> dict:
         "rg":       rg,
         "eg":       eg,
         "fcf":      fcf,
+        "rev":      rev,
     }
 
 
@@ -767,22 +779,24 @@ def tab_analyze(manifest: dict):
             # ── Top metrics ────────────────────────────────────────────────────
             c1, c2, c3, c4, c5 = st.columns(5)
             with c1:
-                st.metric("Price", f"${price:.2f}")
+                st.metric("Price", f"${price:.2f}" if price else "—")
             with c2:
                 upside = score.get("upside")
-                target = info.get("targetMeanPrice")
+                target = _sf(info.get("targetMeanPrice"))
                 st.metric("Analyst Target",
                           f"${target:.2f}" if target else "—",
                           f"{upside*100:+.1f}%" if upside is not None else "")
             with c3:
-                st.metric("RSI (14)", f"{score['rsi']:.0f}" if score.get("rsi") else "—")
+                rsi_disp = score.get("rsi")
+                st.metric("RSI (14)", f"{rsi_disp:.0f}" if rsi_disp is not None else "—")
             with c4:
                 pe = score.get("pe")
                 st.metric("Fwd P/E", f"{pe:.1f}x" if pe else "—")
             with c5:
                 rec_map = {1: "Strong Buy", 2: "Buy", 3: "Hold", 4: "Sell", 5: "Strong Sell"}
                 rec = score.get("rec")
-                st.metric("Analyst Rec", rec_map.get(round(rec) if rec else 0, "—") if rec else "—")
+                rec_label = rec_map.get(int(round(rec)), "—") if rec else "—"
+                st.metric("Analyst Rec", rec_label)
 
             # ── Score radar chart ──────────────────────────────────────────────
             col_radar, col_detail = st.columns([1, 1])
@@ -872,15 +886,18 @@ def tab_analyze(manifest: dict):
             # ── Key financials ─────────────────────────────────────────────────
             st.markdown("**Key Financials:**")
             fin_cols = st.columns(4)
+            _de   = _sf(info.get("debtToEquity"))
+            _beta = _sf(info.get("beta"))
+            _sf_f = _sf(info.get("shortPercentOfFloat"))
             fin_items = [
-                ("Rev Growth",    _pct_fmt(info.get("revenueGrowth"))),
-                ("Gross Margin",  _pct_fmt(info.get("grossMargins"))),
-                ("Op Margin",     _pct_fmt(info.get("operatingMargins"))),
-                ("FCF",           _fmt_large(info.get("freeCashflow"))),
-                ("Total Revenue", _fmt_large(info.get("totalRevenue"))),
-                ("D/E Ratio",     f"{info.get('debtToEquity',0):.0f}%" if info.get("debtToEquity") else "—"),
-                ("Beta",          f"{info.get('beta',0):.2f}" if info.get("beta") else "—"),
-                ("Short Float",   f"{info.get('shortPercentOfFloat',0)*100:.1f}%" if info.get("shortPercentOfFloat") else "—"),
+                ("Rev Growth",    _pct_fmt(_sf(info.get("revenueGrowth")))),
+                ("Gross Margin",  _pct_fmt(_sf(info.get("grossMargins")))),
+                ("Op Margin",     _pct_fmt(_sf(info.get("operatingMargins")))),
+                ("FCF",           _fmt_large(_sf(info.get("freeCashflow")))),
+                ("Total Revenue", _fmt_large(_sf(info.get("totalRevenue")))),
+                ("D/E Ratio",     f"{_de:.0f}%" if _de is not None else "—"),
+                ("Beta",          f"{_beta:.2f}" if _beta is not None else "—"),
+                ("Short Float",   f"{_sf_f*100:.1f}%" if _sf_f is not None else "—"),
             ]
             for i, (label, val) in enumerate(fin_items):
                 with fin_cols[i % 4]:
@@ -988,13 +1005,13 @@ def tab_compare(manifest: dict):
         ("Upside",         lambda sc, inf: f"{sc.get('upside',0)*100:+.1f}%" if sc.get("upside") is not None else "—"),
         ("Fwd P/E",        lambda sc, inf: f"{sc.get('pe'):.1f}x" if sc.get("pe") else "—"),
         ("PEG",            lambda sc, inf: f"{sc.get('peg'):.2f}" if sc.get("peg") else "—"),
-        ("Rev Growth",     lambda sc, inf: f"{inf.get('revenueGrowth',0)*100:+.1f}%" if inf.get("revenueGrowth") is not None else "—"),
-        ("Gross Margin",   lambda sc, inf: f"{inf.get('grossMargins',0)*100:.1f}%" if inf.get("grossMargins") is not None else "—"),
-        ("Op Margin",      lambda sc, inf: f"{inf.get('operatingMargins',0)*100:.1f}%" if inf.get("operatingMargins") is not None else "—"),
+        ("Rev Growth",     lambda sc, inf: _pct_fmt(_sf(inf.get("revenueGrowth")))),
+        ("Gross Margin",   lambda sc, inf: _pct_fmt(_sf(inf.get("grossMargins")))),
+        ("Op Margin",      lambda sc, inf: _pct_fmt(_sf(inf.get("operatingMargins")))),
         ("RSI",            lambda sc, inf: f"{sc.get('rsi'):.0f}" if sc.get("rsi") else "—"),
-        ("Market Cap",     lambda sc, inf: _fmt_large(inf.get("marketCap"))),
-        ("Beta",           lambda sc, inf: f"{inf.get('beta'):.2f}" if inf.get("beta") else "—"),
-        ("Short Float",    lambda sc, inf: f"{inf.get('shortPercentOfFloat',0)*100:.1f}%" if inf.get("shortPercentOfFloat") else "—"),
+        ("Market Cap",     lambda sc, inf: _fmt_large(_sf(inf.get("marketCap")))),
+        ("Beta",           lambda sc, inf: f"{_sf(inf.get('beta')):.2f}" if _sf(inf.get("beta")) is not None else "—"),
+        ("Short Float",    lambda sc, inf: _pct_fmt(_sf(inf.get("shortPercentOfFloat")))),
     ]
     for label, fn in labels:
         row = {"Metric": label}
@@ -1040,18 +1057,19 @@ def tab_compare(manifest: dict):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def _fmt_large(val) -> str:
-    if val is None:
+    v = _sf(val)
+    if v is None:
         return "—"
-    val = float(val)
-    if abs(val) >= 1e12:  return f"${val/1e12:.2f}T"
-    if abs(val) >= 1e9:   return f"${val/1e9:.2f}B"
-    if abs(val) >= 1e6:   return f"${val/1e6:.1f}M"
-    return f"${val:,.0f}"
+    if abs(v) >= 1e12:  return f"${v/1e12:.2f}T"
+    if abs(v) >= 1e9:   return f"${v/1e9:.2f}B"
+    if abs(v) >= 1e6:   return f"${v/1e6:.1f}M"
+    return f"${v:,.0f}"
 
 def _pct_fmt(val) -> str:
-    if val is None:
+    v = _sf(val)
+    if v is None:
         return "—"
-    return f"{float(val)*100:.1f}%"
+    return f"{v*100:.1f}%"
 
 
 # ══════════════════════════════════════════════════════════════════════════════
