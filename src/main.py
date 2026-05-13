@@ -30,7 +30,7 @@ Radar peers:
 import sys
 import logging
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import yaml
@@ -167,7 +167,12 @@ def run(
     group: str | None = None,
     send: bool = True,
 ) -> None:
-    run_date = datetime.utcnow().strftime("%A %d %b %Y, %H:%M UTC")
+    # Pacific Time (UTC-8 standard / UTC-7 daylight) — San Ramon, CA
+    _utc_now = datetime.now(timezone.utc)
+    _pt_offset = -7 if _utc_now.month in range(3, 11) else -8  # rough DST: Mar–Oct
+    _pt_now = _utc_now + timedelta(hours=_pt_offset)
+    _tz_label = "PDT" if _pt_offset == -7 else "PST"
+    run_date = _pt_now.strftime(f"%A %d %b %Y, %H:%M {_tz_label}")
     log.info(f"=== Watchlist pipeline starting — {run_date} ===")
 
     watchlist, radar_peers_cfg = load_watchlist()
