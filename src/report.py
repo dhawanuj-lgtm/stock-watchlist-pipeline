@@ -264,6 +264,31 @@ def generate_report(
   /* Sparkline */
   .sparkline-wrap {{ padding: 0 1.25rem .75rem; }}
   .sparkline-label {{ font-size: .65rem; color: #6c757d; margin-bottom: 3px; }}
+  /* Score pills in card header */
+  .score-pills {{ display:flex; gap:.45rem; flex-shrink:0; align-items:center; }}
+  .score-pill {{ display:inline-flex; align-items:baseline; gap:.3rem;
+                 padding:.3rem .85rem; border-radius:20px; white-space:nowrap; line-height:1.35; }}
+  .score-pill-claude {{ background:#d4edda; color:#155724; }}
+  .score-pill-grok   {{ background:#dbeafe; color:#1e3a6e; }}
+  .score-pill-num {{ font-size:1rem; font-weight:700; }}
+  .score-pill-lbl {{ font-size:.72rem; }}
+  .arch-tag {{ font-size:.72rem; padding:.2rem .65rem; border-radius:12px;
+               border:1px solid #dee2e6; color:#6c757d; white-space:nowrap; }}
+  /* Bull / bear flags strip (pill style) */
+  .flags-strip {{ padding:.5rem 1.25rem .6rem; border-bottom:1px solid #f0f0f0;
+                  display:flex; flex-direction:column; gap:5px; }}
+  .flag-pill {{ display:flex; align-items:center; gap:6px; font-size:.8rem;
+                padding:.3rem .75rem; border-radius:6px; line-height:1.35; }}
+  .flag-pill-bull {{ background:#f0fdf4; color:#166534; }}
+  .flag-pill-bear {{ background:#fef2f2; color:#991b1b; }}
+  .flag-pill-ico  {{ font-size:.65rem; flex-shrink:0; }}
+  /* Grok panel meta row (confidence + horizon pinned at top) */
+  .grok-meta-top  {{ display:flex; gap:1.5rem; margin-bottom:.75rem;
+                     padding-bottom:.6rem; border-bottom:1px solid #e9ecef; }}
+  .grok-meta-item {{ display:flex; flex-direction:column; gap:1px; }}
+  .grok-meta-lbl  {{ font-size:.62rem; font-weight:600; text-transform:uppercase;
+                     letter-spacing:.06em; color:#adb5bd; }}
+  .grok-meta-val  {{ font-size:.9rem; font-weight:700; }}
 </style>
 </head>
 <body>
@@ -752,51 +777,87 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         f'<div class="grok-reason bear">{f}</div>' for f in gl["bear_flags"]
     )
 
-    grok_score_color = gl["sig_color"]
-    ticker_id = r["ticker"]
+    # ── Claude pill signal text (short, single-line) ─────────────────────────
+    _claude_pill_map = {
+        ("green",  "CONFLUENCE"):    "Strong Buy",
+        ("green",  "CONSOLIDATION"): "Buy on Dip",
+        ("green",  "SQUEEZE ON"):    "Hold — Pressure",
+        ("green",  "RISK WATCH"):    "Hold — Risk Alert",
+        ("yellow", "CONFLUENCE"):    "Watch / Add",
+        ("yellow", "CONSOLIDATION"): "Hold / Watch",
+        ("yellow", "SQUEEZE ON"):    "Hold / Watch",
+        ("yellow", "RISK WATCH"):    "Reduce / Watch",
+        ("red",    "CONFLUENCE"):    "Speculative",
+        ("red",    "CONSOLIDATION"): "Avoid / Reduce",
+        ("red",    "SQUEEZE ON"):    "Reduce",
+        ("red",    "RISK WATCH"):    "Reduce / Exit",
+    }
+    claude_sig_text = _claude_pill_map.get((sr.weighted_light, sig.signal), "Hold")
 
+    # Grok pill signal — shorten for single-line display
+    grok_sig_short = (
+        gl["signal"]
+        .replace("BUY on Dip / Strong Hold", "Buy on Dip")
+        .replace("Reduce / Sell", "Reduce")
+    )
+
+    # ── Flags strip (pill-style, replaces the two-col flags section) ─────────
+    flag_pill_items = "".join(
+        f'<div class="flag-pill flag-pill-bull"><span class="flag-pill-ico">▲</span>{f}</div>'
+        for f in (sr.bull_flags or [])
+    ) + "".join(
+        f'<div class="flag-pill flag-pill-bear"><span class="flag-pill-ico">▼</span>{f}</div>'
+        for f in (sr.bear_flags or [])
+    )
+    flags_strip_html = (
+        f'<div class="flags-strip">{flag_pill_items}</div>'
+        if flag_pill_items else ""
+    )
+
+    # ── Grok panel — Confidence + Horizon at top, action + key signals ───────
     grok_panel_html = f"""
 <div class="grok-panel">
   <div class="grok-hdr">
-    <span class="grok-title">Claude ←→ Grok Logic</span>
+    <span class="grok-title">Grok Logic</span>
     <span class="grok-badge" style="background:{gl['conv_bg']}">{gl['conv_label']}</span>
   </div>
-  <div style="display:flex;align-items:baseline;gap:.4rem;margin-bottom:.3rem">
-    <span class="grok-score" style="color:{grok_score_color}">{gl['overall']}</span>
-    <span style="font-size:.8rem;color:#6c757d">/10</span>
+  <div class="grok-meta-top">
+    <div class="grok-meta-item">
+      <span class="grok-meta-lbl">Confidence</span>
+      <span class="grok-meta-val" style="color:{gl['sig_color']}">{gl['confidence']}%</span>
+    </div>
+    <div class="grok-meta-item">
+      <span class="grok-meta-lbl">Horizon</span>
+      <span class="grok-meta-val" style="font-size:.8rem;color:#495057">{gl['horizon']}</span>
+    </div>
   </div>
-  <div class="grok-signal" style="color:{gl['sig_color']}">{gl['signal']}</div>
-  <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
-              color:#6c757d;margin-bottom:.4rem">Weighted Breakdown</div>
-  <div class="grok-breakdown">{breakdown_html}</div>
   <div class="grok-action"><strong>Action:</strong> {gl['action']}</div>
   <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
-              color:#6c757d;margin-bottom:.3rem">Key Reasons</div>
+              color:#6c757d;margin:.6rem 0 .3rem">Key Signals</div>
   <div style="margin-bottom:.5rem">{reasons_html}</div>
-  <div class="grok-footer">
-    <strong>Confidence:</strong> {gl['confidence']}% &nbsp;·&nbsp;
-    <strong>Horizon:</strong> {gl['horizon']}
-  </div>
 </div>"""
 
     return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem">
-  <div class="card-hdr">
-    <div>
+  <div class="card-hdr" style="flex-wrap:wrap;gap:.5rem">
+    <div style="min-width:0;flex:1">
       <div class="ticker-name">{r['ticker']} &nbsp;<span style="font-weight:400;font-size:.9rem;color:#6c757d">{r.get('name','')}</span></div>
-      <div class="ticker-sub">{archetype_label} · {data.get('sector','—')} · {strategies}</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:.4rem">
-      <div class="score-badge" style="color:{score_color};border-color:{score_border}">
-        {dot} {sr.weighted_score}/10
+      <div style="display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap">
+        <span class="arch-tag">{archetype_label} · {data.get('sector','—')}</span>
+        <span class="signal-badge" style="{sig_style}">{sig.signal}</span>
+        {flip_html}
+        {trend_html}
+        <span style="font-size:.7rem;color:#adb5bd">{thesis_updated}</span>
       </div>
-      {trend_html}
     </div>
-    <span class="signal-badge" style="{sig_style}">{sig.signal}</span>
-    {flip_html}
-    <div style="flex:1"></div>
-    <div style="text-align:right">
-      <div style="font-size:.7rem;color:#adb5bd">Thesis updated</div>
-      <div style="font-size:.75rem;font-weight:600">{thesis_updated}</div>
+    <div class="score-pills">
+      <span class="score-pill score-pill-claude">
+        <span class="score-pill-num">{sr.weighted_score}</span>
+        <span class="score-pill-lbl">Claude · {claude_sig_text}</span>
+      </span>
+      <span class="score-pill score-pill-grok">
+        <span class="score-pill-num">{gl['overall']}</span>
+        <span class="score-pill-lbl">Grok · {grok_sig_short}</span>
+      </span>
     </div>
   </div>
 
@@ -806,21 +867,15 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
 
   {divergence_html}
 
+  {flags_strip_html}
+
   <div class="card-body-grid">
     <div>
       {_sparkline_html(history)}
       <div class="metrics-grid">{metrics_html}</div>
-      <div class="two-col">
-        <div>
-          <div class="section-title">Category breakdown</div>
-          <div class="cat-grid">{cat_rows}</div>
-        </div>
-        <div>
-          <div class="section-title">Top bull flags</div>
-          <div class="flags" style="margin-bottom:.75rem">{bull_html}</div>
-          <div class="section-title">Top bear flags</div>
-          <div class="flags">{bear_html}</div>
-        </div>
+      <div style="padding:0 1.25rem 1rem">
+        <div class="section-title">Category breakdown</div>
+        <div class="cat-grid">{cat_rows}</div>
       </div>
     </div>
     {grok_panel_html}
