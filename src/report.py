@@ -189,6 +189,45 @@ def generate_report(
   .flag {{ font-size: .8rem; padding: .3rem .6rem; border-radius: 5px; line-height: 1.4; }}
   .flag-bull {{ background: #d4edda; color: #155724; }}
   .flag-bear {{ background: #f8d7da; color: #721c24; }}
+  /* Grok Logic panel */
+  .card-body-grid {{ display: grid; grid-template-columns: 1fr 420px; gap: 0;
+                     align-items: start; }}
+  @media (max-width: 900px) {{ .card-body-grid {{ grid-template-columns: 1fr; }} }}
+  .grok-panel {{ border-left: 2px solid #e9ecef; padding: 1rem 1.25rem;
+                 background: #fafbfc; }}
+  @media (max-width: 900px) {{ .grok-panel {{ border-left: none; border-top: 2px solid #e9ecef; }} }}
+  .grok-hdr  {{ display: flex; align-items: center; justify-content: space-between;
+                margin-bottom: .75rem; padding-bottom: .6rem;
+                border-bottom: 1px solid #e9ecef; }}
+  .grok-title{{ font-size: .65rem; font-weight: 700; text-transform: uppercase;
+                letter-spacing: .08em; color: #6c757d; }}
+  .grok-badge{{ font-size: .7rem; font-weight: 700; padding: .2rem .65rem;
+                border-radius: 10px; color: #fff; white-space: nowrap; }}
+  .grok-score{{ font-size: 1.5rem; font-weight: 800; line-height: 1; }}
+  .grok-signal{{ font-size: .9rem; font-weight: 700; margin: .5rem 0 .75rem; }}
+  .grok-breakdown {{ display: grid; grid-template-columns: 1fr 1fr; gap: 3px 12px;
+                     font-size: .75rem; margin-bottom: .75rem; }}
+  .grok-row  {{ display: flex; justify-content: space-between; align-items: center;
+                padding: 2px 0; }}
+  .grok-cat  {{ color: #6c757d; }}
+  .grok-val  {{ font-weight: 700; min-width: 28px; text-align: right; }}
+  .grok-wt   {{ font-size: .65rem; color: #adb5bd; margin-left: 3px; }}
+  .grok-action {{ font-size: .78rem; line-height: 1.5; margin-bottom: .6rem;
+                  padding: .5rem .7rem; border-radius: 6px; background: #f8f9fa; }}
+  .grok-reason {{ font-size: .75rem; line-height: 1.5; padding: 2px 0; }}
+  .grok-reason::before {{ margin-right: .35rem; font-size: .65rem; }}
+  .grok-reason.bull::before {{ content: "▲"; color: #28a745; }}
+  .grok-reason.bear::before {{ content: "▼"; color: #dc3545; }}
+  .grok-footer {{ font-size: .72rem; color: #6c757d; padding-top: .6rem;
+                  margin-top: .6rem; border-top: 1px solid #e9ecef; }}
+  .grok-toggle {{ display: none; }}
+  @media (max-width: 900px) {{
+    .grok-toggle {{ display: block; background: none; border: 1px solid #dee2e6;
+                    border-radius: 6px; padding: .3rem .8rem; font-size: .75rem;
+                    color: #6c757d; cursor: pointer; margin: .5rem 1.25rem; }}
+    .grok-collapsible {{ display: none; }}
+    .grok-collapsible.open {{ display: block; }}
+  }}
   .metrics-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
                    gap: 8px; padding: 0 1.25rem 1rem; }}
   .metric {{ background: #f8f9fa; border-radius: 6px; padding: .5rem .75rem; }}
@@ -288,6 +327,95 @@ Activate Finnhub / Telegram by adding secrets to GitHub Actions.<br>
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html)
     return html
+
+
+def _compute_grok_logic(sr) -> dict:
+    """
+    Second-opinion scoring panel using Grok Logic weights.
+    Derived entirely from existing CategoryResult objects — no external API.
+
+    Weights: Fundamentals 30% · Valuation 20% · Technical 20%
+             Moat+Catalysts+Management 10% · Macro+Risk 10% · Sentiment+Inst 10%
+    """
+    cats = sr.categories
+
+    def _s(cat_id: str) -> float:
+        cr = cats.get(cat_id)
+        return cr.score if cr else 5.0
+
+    f   = _s("fundamentals")
+    v   = _s("valuation")
+    t   = _s("technical")
+    mct = round((_s("moat") + _s("catalysts") + _s("management")) / 3, 1)
+    mr  = round((_s("macro")  + _s("risk"))          / 2, 1)
+    si  = round((_s("sentiment") + _s("institutional")) / 2, 1)
+
+    overall = round(f*0.30 + v*0.20 + t*0.20 + mct*0.10 + mr*0.10 + si*0.10, 1)
+
+    # Signal + conviction
+    if overall >= 7.5 and f >= 8.0:
+        signal, sig_color = "BUY on Dip / Strong Hold", "#28a745"
+        conv_label, conv_bg = "High Conviction", "#28a745"
+    elif overall >= 7.5:
+        signal, sig_color = "Strong Hold", "#28a745"
+        conv_label, conv_bg = "High Conviction", "#28a745"
+    elif overall >= 6.5:
+        signal, sig_color = "Hold / Watch", "#856404"
+        conv_label, conv_bg = "Watch / Hold", "#e0a800"
+    elif overall >= 5.5:
+        signal, sig_color = "Hold / Watch", "#856404"
+        conv_label, conv_bg = "Watch / Hold", "#e0a800"
+    else:
+        signal, sig_color = "Reduce / Sell", "#dc3545"
+        conv_label, conv_bg = "Caution", "#dc3545"
+
+    # Confidence: score-derived, capped
+    confidence = min(95, max(30, int(overall * 10 + 2)))
+
+    # Horizon by archetype
+    arch = sr.archetype
+    horizon = {
+        "mega":   "Long-term (3–7 years)",
+        "largeg": "Long-term (3–5 years)",
+        "smallg": "Medium-term (2–4 years)",
+        "spec":   "Speculative (1–3 years)",
+        "micro":  "Speculative (1–2 years)",
+    }.get(arch, "Long-term (3–5 years)")
+
+    # Action recommendation
+    if "BUY" in signal:
+        action = f"Strong conviction — high-quality {arch} with excellent fundamentals. Add on pullbacks."
+    elif signal == "Strong Hold":
+        action = "High-conviction position. Hold and monitor for next entry signal before adding more."
+    elif "Watch" in signal:
+        action = "Mid-conviction. Hold existing position — wait for clearer signal before sizing up."
+    else:
+        action = "Below conviction threshold. Review position size or await fundamental improvement."
+
+    # Score color helper
+    def _sc(val: float) -> str:
+        return "#28a745" if val >= 7.5 else ("#856404" if val >= 5.5 else "#dc3545")
+
+    return {
+        "overall":    overall,
+        "signal":     signal,
+        "sig_color":  sig_color,
+        "conv_label": conv_label,
+        "conv_bg":    conv_bg,
+        "confidence": confidence,
+        "horizon":    horizon,
+        "action":     action,
+        "bull_flags": (sr.bull_flags or [])[:3],
+        "bear_flags": (sr.bear_flags or [])[:2],
+        "breakdown": [
+            ("Fundamentals",    f,   "30%", _sc(f)),
+            ("Valuation",       v,   "20%", _sc(v)),
+            ("Technical",       t,   "20%", _sc(t)),
+            ("Moat + Catalysts", mct, "10%", _sc(mct)),
+            ("Macro / Risk",    mr,  "10%", _sc(mr)),
+            ("Sentiment / Inst", si, "10%", _sc(si)),
+        ],
+    }
 
 
 def _situation_summary(score: float, signal: str, trend: str, arch: str) -> tuple:
@@ -606,6 +734,51 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
     strategies = ", ".join(r.get("strategy", []))
     thesis_updated = r.get("thesis_config", {}).get("last_updated", "")
 
+    # ── Grok Logic panel ─────────────────────────────────────────────────────
+    gl = _compute_grok_logic(sr)
+
+    breakdown_html = "".join(
+        f'<div class="grok-row">'
+        f'<span class="grok-cat">{cat}</span>'
+        f'<span><span class="grok-val" style="color:{color}">{val:.1f}</span>'
+        f'<span class="grok-wt">{wt}</span></span>'
+        f'</div>'
+        for cat, val, wt, color in gl["breakdown"]
+    )
+
+    reasons_html = "".join(
+        f'<div class="grok-reason bull">{f}</div>' for f in gl["bull_flags"]
+    ) + "".join(
+        f'<div class="grok-reason bear">{f}</div>' for f in gl["bear_flags"]
+    )
+
+    grok_score_color = gl["sig_color"]
+    ticker_id = r["ticker"]
+
+    grok_panel_html = f"""
+<div class="grok-panel">
+  <div class="grok-hdr">
+    <span class="grok-title">Claude ←→ Grok Logic</span>
+    <span class="grok-badge" style="background:{gl['conv_bg']}">{gl['conv_label']}</span>
+  </div>
+  <div style="display:flex;align-items:baseline;gap:.4rem;margin-bottom:.3rem">
+    <span class="grok-score" style="color:{grok_score_color}">{gl['overall']}</span>
+    <span style="font-size:.8rem;color:#6c757d">/10</span>
+  </div>
+  <div class="grok-signal" style="color:{gl['sig_color']}">{gl['signal']}</div>
+  <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
+              color:#6c757d;margin-bottom:.4rem">Weighted Breakdown</div>
+  <div class="grok-breakdown">{breakdown_html}</div>
+  <div class="grok-action"><strong>Action:</strong> {gl['action']}</div>
+  <div style="font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
+              color:#6c757d;margin-bottom:.3rem">Key Reasons</div>
+  <div style="margin-bottom:.5rem">{reasons_html}</div>
+  <div class="grok-footer">
+    <strong>Confidence:</strong> {gl['confidence']}% &nbsp;·&nbsp;
+    <strong>Horizon:</strong> {gl['horizon']}
+  </div>
+</div>"""
+
     return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem">
   <div class="card-hdr">
     <div>
@@ -633,21 +806,24 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
 
   {divergence_html}
 
-  {_sparkline_html(history)}
-
-  <div class="metrics-grid">{metrics_html}</div>
-
-  <div class="two-col">
+  <div class="card-body-grid">
     <div>
-      <div class="section-title">Category breakdown</div>
-      <div class="cat-grid">{cat_rows}</div>
+      {_sparkline_html(history)}
+      <div class="metrics-grid">{metrics_html}</div>
+      <div class="two-col">
+        <div>
+          <div class="section-title">Category breakdown</div>
+          <div class="cat-grid">{cat_rows}</div>
+        </div>
+        <div>
+          <div class="section-title">Top bull flags</div>
+          <div class="flags" style="margin-bottom:.75rem">{bull_html}</div>
+          <div class="section-title">Top bear flags</div>
+          <div class="flags">{bear_html}</div>
+        </div>
+      </div>
     </div>
-    <div>
-      <div class="section-title">Top bull flags</div>
-      <div class="flags" style="margin-bottom:.75rem">{bull_html}</div>
-      <div class="section-title">Top bear flags</div>
-      <div class="flags">{bear_html}</div>
-    </div>
+    {grok_panel_html}
   </div>
 </div>"""
 
