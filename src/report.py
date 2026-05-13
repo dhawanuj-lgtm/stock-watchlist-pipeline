@@ -267,7 +267,6 @@ def generate_report(
   .sparkline-label {{ font-size: .65rem; color: #6c757d; margin-bottom: 3px; }}
   /* Score mini-cards in header */
   .score-cards {{ display:flex; gap:.5rem; flex-shrink:0; align-items:flex-start; }}
-  .score-card {{ padding:.55rem .9rem; border-radius:10px; min-width:150px; max-width:200px; }}
   .score-card-claude {{ background:#d4edda; }}
   .score-card-grok   {{ background:#dbeafe; }}
   .scard-header {{ display:flex; align-items:baseline; gap:.35rem; margin-bottom:.1rem; }}
@@ -306,6 +305,32 @@ def generate_report(
   .grok-meta-lbl  {{ font-size:.62rem; font-weight:600; text-transform:uppercase;
                      letter-spacing:.06em; color:#adb5bd; }}
   .grok-meta-val  {{ font-size:.9rem; font-weight:700; }}
+  /* Horizontal semantic metrics strip */
+  .metrics-strip  {{ display:flex; flex-wrap:wrap; padding:.45rem 1.25rem .3rem;
+                     border-bottom:1px solid #f0f0f0; gap:0; align-items:center; }}
+  .ms-price-area  {{ display:inline-flex; align-items:center; gap:.5rem;
+                     padding:.25rem .9rem .25rem 0; margin-right:.3rem;
+                     border-right:2px solid #e9ecef; }}
+  .ms-price       {{ font-size:1.05rem; font-weight:700; color:#212529; }}
+  .ms-change      {{ font-size:.82rem; font-weight:600; }}
+  .ms-item        {{ display:inline-flex; align-items:center; gap:.3rem;
+                     padding:.25rem .8rem; border-right:1px solid #f0f0f0;
+                     white-space:nowrap; }}
+  .ms-item:last-child {{ border-right:none; }}
+  .ms-key         {{ color:#adb5bd; font-size:.7rem; }}
+  .ms-val         {{ font-weight:600; font-size:.82rem; }}
+  .ms-tag         {{ font-size:.63rem; padding:.1rem .4rem; border-radius:8px;
+                     font-weight:500; letter-spacing:.01em; }}
+  .ms-tag-green   {{ background:#d4edda; color:#155724; }}
+  .ms-tag-yellow  {{ background:#fff3cd; color:#856404; }}
+  .ms-tag-red     {{ background:#f8d7da; color:#721c24; }}
+  /* Score card polish */
+  .score-card     {{ padding:.55rem .9rem; border-radius:10px; min-width:148px;
+                     max-width:195px; position:relative; overflow:hidden; }}
+  .score-card::before {{ content:''; position:absolute; top:0; left:0; right:0;
+                          height:3px; border-radius:10px 10px 0 0; }}
+  .score-card-claude::before {{ background:#28a745; }}
+  .score-card-grok::before   {{ background:#3b82f6; }}
 </style>
 </head>
 <body>
@@ -760,6 +785,77 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         for k, v, hint, tip in metrics_raw
     )
 
+    # ── Horizontal semantic metrics strip ────────────────────────────────────
+    def _sem(hint, tags: dict) -> str:
+        return tags.get(hint or "", "")
+
+    _strip_spec = [
+        ("RSI",          str(rsi_raw) if rsi_raw else "—",
+         _rsi_hint(rsi_raw),
+         {"green": "neutral", "yellow": "watch", "red": "extended"}),
+        ("P/E",          f'{pe_raw:.1f}x' if pe_raw else "—",
+         _pe_hint(pe_raw),
+         {"green": "value", "yellow": "fair", "red": "rich"}),
+        ("Rev Growth",   f'{rg_raw*100:+.1f}%' if rg_raw else "—",
+         _rg_hint(rg_raw),
+         {"green": "strong", "yellow": "moderate", "red": "low"}),
+        ("Gross Margin", gm_str,
+         _gm_hint(gm_raw),
+         {"green": "excellent", "yellow": "good", "red": "thin"}),
+        ("FCF Margin",   fcf_margin_str,
+         _fcfm_hint(fcf_raw, rev_raw),
+         {"green": "solid", "yellow": "lean", "red": "negative"}),
+        ("Op Margin",    op_margin_str,
+         _opm_hint(op_margin),
+         {"green": "strong", "yellow": "moderate", "red": "thin"}),
+        ("Short Float",  f'{sf_raw*100:.1f}%' if sf_raw else "—",
+         _short_hint(sf_raw),
+         {"green": "clean", "yellow": "watch", "red": "elevated"}),
+        ("Inst. Own",    f'{io_raw*100:.0f}%' if io_raw else "—",
+         _inst_hint(io_raw),
+         {"green": "strong", "yellow": "moderate", "red": "low"}),
+        ("D/E",          de_str,
+         _de_hint(de),
+         {"green": "lean", "yellow": "moderate", "red": "leveraged"}),
+        ("Analyst Tgt",  f'${data["analyst_target"]:.0f}' if data.get("analyst_target") else "—",
+         _upside_hint(analyst_upside),
+         {"green": "upside", "yellow": "at target", "red": "downside"}),
+    ]
+
+    _price_area_html = ""
+    if price:
+        _price_area_html = (
+            f'<div class="ms-price-area">'
+            f'<span class="ms-price">${price:.2f}</span>'
+            f'<span class="ms-change" style="color:{change_color}">{change_str}</span>'
+            f'</div>'
+        )
+
+    _strip_items_html = "".join(
+        f'<div class="ms-item">'
+        f'<span class="ms-key">{k}</span>'
+        f'<span class="ms-val">{v}</span>'
+        + (f'<span class="ms-tag ms-tag-{hint}">{_sem(hint, tags)}</span>'
+           if hint and _sem(hint, tags) else "")
+        + '</div>'
+        for k, v, hint, tags in _strip_spec
+        if v not in ("—", "")
+    )
+
+    _earnings_val = data.get("earnings_date", "") or ""
+    _earnings_item = (
+        f'<div class="ms-item">'
+        f'<span class="ms-key">Earnings</span>'
+        f'<span class="ms-val">{_earnings_val}</span>'
+        f'</div>'
+    ) if _earnings_val and _earnings_val != "—" else ""
+
+    metrics_strip_html = (
+        f'<div class="metrics-strip">'
+        f'{_price_area_html}{_strip_items_html}{_earnings_item}'
+        f'</div>'
+    )
+
     # ── Situation summary (score + signal → plain-English action prompt) ─────────
     situation_text, sit_bg, sit_fg = _situation_summary(
         sr.weighted_score, sig.signal, sig.score_trend, sr.archetype
@@ -846,7 +942,6 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
     </div>
     <div class="scard-signal" style="color:{gl['sig_color']}">{grok_sig_short}</div>
     <div class="scard-meta" style="color:#1e3a6e">{gl['confidence']}% · {gl['horizon']}</div>
-    <div class="scard-action" style="color:#1e3a6e">{gl['action']}</div>
   </div>
 </div>"""
 
@@ -889,8 +984,8 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
   {bear_flags_panel}
 </div>"""
 
-    return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem">
-  <div class="card-hdr" style="flex-wrap:wrap;gap:.5rem;align-items:flex-start">
+    return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem;border-left:4px solid {score_border}">
+  <div class="card-hdr" style="flex-wrap:wrap;gap:.5rem;align-items:flex-start;background:linear-gradient(135deg,#fafbfc 0%,#fff 60%)">
     <div style="min-width:0;flex:1">
       <div class="ticker-name">{r['ticker']} &nbsp;<span style="font-weight:400;font-size:.9rem;color:#6c757d">{r.get('name','')}</span></div>
       <div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
@@ -906,10 +1001,11 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
 
   {info_panel_html}
 
+  {metrics_strip_html}
+
   <div class="card-body-grid">
     <div>
       {_sparkline_html(history)}
-      <div class="metrics-grid">{metrics_html}</div>
       <div style="padding:0 1.25rem 1rem">
         <div class="section-title">Category breakdown</div>
         <div class="cat-grid">{cat_rows}</div>
