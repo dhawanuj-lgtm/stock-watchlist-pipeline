@@ -331,6 +331,40 @@ def generate_report(
                           height:3px; border-radius:10px 10px 0 0; }}
   .score-card-claude::before {{ background:#28a745; }}
   .score-card-grok::before   {{ background:#3b82f6; }}
+  /* ── Dark card body ──────────────────────────────────────────────── */
+  .dark-body {{ background: #1a1a2e; }}
+  /* Dark metrics strip */
+  .dark-body .metrics-strip {{ background:#12122a; border-bottom:1px solid rgba(255,255,255,.07); }}
+  .dark-body .ms-price      {{ color:#e0e0f0; }}
+  .dark-body .ms-key        {{ color:#6060a0; }}
+  .dark-body .ms-val        {{ color:#c8c8e0; }}
+  .dark-body .ms-change     {{ /* kept inline */ }}
+  .dark-body .ms-item       {{ border-right-color:rgba(255,255,255,.07); }}
+  .dark-body .ms-price-area {{ border-right-color:rgba(255,255,255,.15); }}
+  .dark-body .ms-tag-green  {{ background:rgba(40,167,69,.28); color:#7ec89e; }}
+  .dark-body .ms-tag-yellow {{ background:rgba(255,193,7,.22); color:#ffc107; }}
+  .dark-body .ms-tag-red    {{ background:rgba(220,53,69,.28); color:#f08888; }}
+  /* Dark info panel */
+  .dark-body .info-panel    {{ border-color:rgba(255,255,255,.1); background:#1a1a2e; }}
+  .dark-body .info-thesis   {{ border-bottom-color:rgba(255,255,255,.08); color:#c8c8e0; }}
+  .dark-body .info-sit-act  {{ /* grid, unchanged */ }}
+  .dark-body .info-act      {{ border-left-color:rgba(255,255,255,.1); }}
+  .dark-body .info-insight  {{ background:rgba(255,193,7,.12); color:#ffc107;
+                                border-top-color:rgba(255,255,255,.08); }}
+  .dark-body .info-kw       {{ color:#6060a0; }}
+  /* Dark category & flags */
+  .dark-body .section-title {{ color:#6060a0; }}
+  .dark-body .flags-panel-hdr {{ color:#6060a0; }}
+  .dark-body .flag-bull     {{ background:rgba(40,167,69,.18); color:#7ec89e;
+                                border:1px solid rgba(40,167,69,.25); }}
+  .dark-body .flag-bear     {{ background:rgba(220,53,69,.18); color:#f08888;
+                                border:1px solid rgba(220,53,69,.25); }}
+  /* Dark sparkline */
+  .dark-body .sparkline-wrap  {{ padding:0 1.25rem 1rem; }}
+  .dark-body .sparkline-label {{ color:#6060a0; }}
+  /* Key signals right column in dark body */
+  .dark-signals {{ border-left:1px solid rgba(255,255,255,.07); padding:.9rem 1.25rem;
+                   display:flex; flex-direction:column; }}
 </style>
 </head>
 <body>
@@ -945,43 +979,80 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
   </div>
 </div>"""
 
+    # ── Dark theme color mappings for info panel ─────────────────────────────
+    # Thesis: tinted by overall conviction
+    _thesis_dark = {
+        "green":  ("rgba(40,167,69,.15)",   "#7ec89e",  "#28a745"),
+        "yellow": ("rgba(255,193,7,.12)",   "#e6b800",  "#ffc107"),
+        "red":    ("rgba(220,53,69,.15)",   "#f08888",  "#dc3545"),
+        "gray":   ("rgba(255,255,255,.05)", "#9090b0",  "#5050a0"),
+    }
+    thesis_dbg, thesis_dfg, thesis_dborder = _thesis_dark.get(
+        sr.weighted_light, _thesis_dark["gray"]
+    )
+
+    # Situation: map light palette → dark
+    _sit_dark_map = {
+        "#d4edda": ("rgba(40,167,69,.15)",   "#7ec89e"),   # green
+        "#e8f4f8": ("rgba(0,123,255,.12)",   "#7ec8e8"),   # teal/blue
+        "#fff3cd": ("rgba(255,193,7,.12)",   "#ffc107"),   # yellow
+        "#f8d7da": ("rgba(220,53,69,.15)",   "#f08888"),   # red
+        "#f8f9fa": ("rgba(255,255,255,.05)", "#9090b0"),   # gray
+    }
+    sit_dbg, sit_dfg = _sit_dark_map.get(sit_bg, ("rgba(255,255,255,.05)", "#9090b0"))
+
+    # Action · Grok: tinted by grok signal
+    _grok_dark_map = {
+        "#28a745": ("rgba(40,167,69,.12)",   "#7ec89e"),
+        "#856404": ("rgba(255,193,7,.10)",   "#ffc107"),
+        "#dc3545": ("rgba(220,53,69,.12)",   "#f08888"),
+    }
+    grok_dbg, grok_dfg = _grok_dark_map.get(gl["sig_color"], ("rgba(255,255,255,.05)", "#9090b0"))
+
+    # Insight
+    insight_dbg, insight_dfg = "rgba(255,193,7,.12)", "#ffc107"
+
     # ── Info panel: Thesis / Situation / Action / Insight ────────────────────
     insight_row = (
-        f'<div class="info-insight">'
-        f'<span class="info-kw">Insight</span>{sig.divergence}</div>'
+        f'<div class="info-insight" style="background:{insight_dbg};color:{insight_dfg};'
+        f'border-top-color:rgba(255,255,255,.08)">'
+        f'<span class="info-kw" style="color:{insight_dfg};opacity:.7">Insight</span>'
+        f'{sig.divergence}</div>'
     ) if sig.divergence else ""
 
-    info_panel_html = f"""<div class="info-panel">
-  <div class="info-thesis">
-    <span class="info-kw">Thesis</span>{thesis}
+    info_panel_html = f"""<div class="info-panel" style="border-color:rgba(255,255,255,.1);background:#1a1a2e">
+  <div class="info-thesis" style="background:{thesis_dbg};border-left:3px solid {thesis_dborder};color:#c8c8e0;border-bottom-color:rgba(255,255,255,.08)">
+    <span class="info-kw" style="color:{thesis_dborder};opacity:.9">Thesis</span>{thesis}
   </div>
   <div class="info-sit-act">
-    <div class="info-sit" style="background:{sit_bg};color:{sit_fg}">
-      <span class="info-kw" style="color:{sit_fg};opacity:.75">Situation</span>
+    <div class="info-sit" style="background:{sit_dbg};color:{sit_dfg}">
+      <span class="info-kw" style="color:{sit_dfg};opacity:.7">Situation</span>
       {situation_text}
     </div>
-    <div class="info-act">
-      <span class="info-kw" style="color:#1a5c1a">Action · Grok</span>
-      <span style="color:{gl['sig_color']}">{gl['action']}</span>
+    <div class="info-act" style="background:{grok_dbg};border-left-color:rgba(255,255,255,.1)">
+      <span class="info-kw" style="color:{grok_dfg};opacity:.7">Action · Grok</span>
+      <span style="color:{grok_dfg}">{gl['action']}</span>
     </div>
   </div>
   {insight_row}
 </div>"""
 
-    # ── Right panel: bull / bear flags (replaces old Grok panel) ─────────────
+    # ── Key signals + sparkline in right column ───────────────────────────────
     bull_flags_panel = "".join(
         f'<div class="flag flag-bull" style="margin-bottom:5px">▲ {f}</div>'
         for f in (sr.bull_flags or [])
-    ) or '<div class="flag flag-bull" style="opacity:.5">No bull flags detected</div>'
+    ) or '<div class="flag flag-bull" style="opacity:.4">No bull flags detected</div>'
     bear_flags_panel = "".join(
         f'<div class="flag flag-bear" style="margin-bottom:5px">▼ {f}</div>'
         for f in (sr.bear_flags or [])
-    ) or '<div class="flag flag-bear" style="opacity:.5">No bear flags detected</div>'
+    ) or '<div class="flag flag-bear" style="opacity:.4">No bear flags detected</div>'
 
-    flags_panel_html = f"""<div class="flags-panel">
+    flags_panel_html = f"""<div class="dark-signals">
   <div class="flags-panel-hdr">Key Signals</div>
   {bull_flags_panel}
   {bear_flags_panel}
+  <div style="flex:1"></div>
+  {_sparkline_html(history)}
 </div>"""
 
     return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem;border-left:4px solid {score_border}">
@@ -999,19 +1070,20 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
     {score_cards_html}
   </div>
 
-  {info_panel_html}
+  <div class="dark-body">
+    {info_panel_html}
 
-  {metrics_strip_html}
+    {metrics_strip_html}
 
-  <div class="card-body-grid">
-    <div>
-      {_sparkline_html(history)}
-      <div style="padding:0 1.25rem 1rem">
-        <div class="section-title">Category breakdown</div>
-        <div class="cat-grid">{cat_rows}</div>
+    <div class="card-body-grid">
+      <div>
+        <div style="padding:.75rem 1.25rem 1rem">
+          <div class="section-title">Category breakdown</div>
+          <div class="cat-grid">{cat_rows}</div>
+        </div>
       </div>
+      {flags_panel_html}
     </div>
-    {flags_panel_html}
   </div>
 </div>"""
 
