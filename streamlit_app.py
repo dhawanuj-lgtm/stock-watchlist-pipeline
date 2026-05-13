@@ -1232,8 +1232,15 @@ def tab_analyze(manifest: dict):
             _de      = _sf(info.get("debtToEquity"))
             _si      = _sf(info.get("shortPercentOfFloat"))
             _io      = _sf(info.get("institutionPercentHeld")) or _sf(info.get("heldPercentInstitutions"))
-            _chg     = _sf(info.get("regularMarketChangePercent")) or _sf(info.get("regularMarketChange"))
-            chg_s    = f'<span style="color:{"#22c55e" if (_chg or 0)>=0 else "#ef4444"};">{_chg*100:+.2f}%</span>' if _chg else ""
+            # regularMarketChangePercent = decimal (0.0125 = +1.25%)
+            # regularMarketChange = dollar change — NOT a pct, never multiply by 100
+            _chg_pct = _sf(info.get("regularMarketChangePercent"))
+            if _chg_pct is None:
+                # compute from price vs previous close
+                _prev = _sf(info.get("previousClose")) or _sf(info.get("regularMarketPreviousClose"))
+                if price and _prev and _prev > 0:
+                    _chg_pct = (price - _prev) / _prev
+            chg_s    = f'<span style="color:{"#22c55e" if (_chg_pct or 0)>=0 else "#ef4444"};">{_chg_pct*100:+.2f}%</span>' if _chg_pct is not None else ""
             price_s  = f'<b style="color:#f1f5f9;font-size:16px;">${price:.2f}</b> {chg_s}'
             rsi_s    = f'RSI <b>{rsi_val:.0f}</b> {_rsi_pill(rsi_val)}' if rsi_val else ""
             gm_s     = f'Gross Margin <b>{_gm*100:.1f}%</b> {_margin_pill(_gm)}' if _gm else ""
