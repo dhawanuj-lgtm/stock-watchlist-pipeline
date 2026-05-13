@@ -1,7 +1,7 @@
 # ── Stock watchlist pipeline — GitHub Actions ──────────────────────────────────────────────
-# Two-cadence schedule:
-#   Monday    06:00 UTC → owned portfolio (39 tickers)
-#   Thursday  06:00 UTC → watchlist candidates (10 tickers, auto-skips owned)
+# Two-cadence schedule (San Ramon, CA — Pacific Time):
+#   Monday    6:35 AM PDT → owned portfolio (39 tickers)     [13:35 UTC summer / 14:35 UTC winter]
+#   Thursday  6:35 AM PDT → watchlist candidates (10 tickers, auto-skips owned)
 #
 # Manual trigger: Actions → Run workflow → choose group
 #
@@ -27,8 +27,8 @@ name: Weekly watchlist digest
 
 on:
   schedule:
-    - cron: "0 6 * * 1"    # Monday 06:00 UTC   → owned portfolio
-    - cron: "0 6 * * 4"    # Thursday 06:00 UTC → watchlist candidates
+    - cron: "35 13 * * 1"  # Monday    6:35 AM PDT (13:35 UTC) → owned portfolio
+    - cron: "35 13 * * 4"  # Thursday  6:35 AM PDT (13:35 UTC) → watchlist candidates
   workflow_dispatch:        # Allow manual runs from Actions tab
     inputs:
       group:
