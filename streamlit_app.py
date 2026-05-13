@@ -802,12 +802,17 @@ def tab_analyze(manifest: dict):
             col_radar, col_detail = st.columns([1, 1])
             with col_radar:
                 factors = score["factors"]
+                _radar_fills = {
+                    GREEN:  "rgba(34,197,94,0.2)",
+                    YELLOW: "rgba(234,179,8,0.2)",
+                    RED:    "rgba(239,68,68,0.2)",
+                }
                 fig_radar = go.Figure(go.Scatterpolar(
                     r=list(factors.values()),
                     theta=list(factors.keys()),
                     fill="toself",
                     line_color=overall_color,
-                    fillcolor=overall_color.replace(")", ",0.2)").replace("rgb", "rgba") if "rgb" in overall_color else overall_color + "33",
+                    fillcolor=_radar_fills.get(overall_color, "rgba(99,102,241,0.2)"),
                 ))
                 fig_radar.update_layout(
                     polar=dict(
@@ -825,7 +830,10 @@ def tab_analyze(manifest: dict):
                 st.markdown(f"#### {score['light']} Overall Score: **{score['overall']:.1f} / 10**")
                 st.markdown(f"**Sector:** {sector}")
                 st.markdown(f"**Market Cap:** {_fmt_large(info.get('marketCap'))}")
-                st.markdown(f"**52w Range:** ${info.get('fiftyTwoWeekLow',0):.2f} – ${info.get('fiftyTwoWeekHigh',0):.2f}")
+                _52lo = _sf(info.get("fiftyTwoWeekLow"))
+                _52hi = _sf(info.get("fiftyTwoWeekHigh"))
+                _52_str = (f"${_52lo:.2f} – ${_52hi:.2f}" if (_52lo and _52hi) else "—")
+                st.markdown(f"**52w Range:** {_52_str}")
 
                 st.markdown("**Factor Breakdown:**")
                 for fname, fscore in factors.items():
@@ -877,11 +885,14 @@ def tab_analyze(manifest: dict):
                 last_vol = hist["Volume"].iloc[-1]
                 vol_ratio = last_vol / avg_vol if avg_vol > 0 else 1
                 vol_color = GREEN if vol_ratio > 1.2 else (RED if vol_ratio < 0.6 else YELLOW)
-                st.markdown(
-                    f"**Volume:** {_fmt_large(int(last_vol))} "
-                    f"<span style='color:{vol_color};'>({vol_ratio:.1f}x avg)</span>",
-                    unsafe_allow_html=True,
-                )
+                try:
+                    st.markdown(
+                        f"**Volume:** {_fmt_large(int(last_vol))} "
+                        f"<span style='color:{vol_color};'>({vol_ratio:.1f}x avg)</span>",
+                        unsafe_allow_html=True,
+                    )
+                except Exception:
+                    pass
 
             # ── Key financials ─────────────────────────────────────────────────
             st.markdown("**Key Financials:**")
