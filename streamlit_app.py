@@ -99,6 +99,47 @@ def fetch_live(ticker: str) -> dict | None:
         return None
 
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def fetch_news(ticker: str) -> list[dict]:
+    """Fetch recent news headlines from yfinance."""
+    try:
+        return yf.Ticker(ticker).news or []
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def generate_ai_thesis(ticker: str, score: dict) -> str | None:
+    """
+    Generate a 2-sentence investment thesis via Claude Haiku.
+    Returns None gracefully if ANTHROPIC_API_KEY is not set.
+    score dict is passed as a hashable cache key via str conversion.
+    """
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        return None
+    try:
+        import anthropic
+        factors = score.get("factors", {})
+        factor_str = ", ".join(f"{k}: {v}/10" for k, v in factors.items())
+        prompt = (
+            f"Write exactly 2 punchy sentences as an investment thesis for {ticker}. "
+            f"Data: Overall score {score.get('overall')}/10, {factor_str}. "
+            f"Price ${score.get('price', 0):.2f}, analyst upside "
+            f"{(score.get('upside') or 0)*100:.1f}%, RSI {score.get('rsi') or 'N/A'}. "
+            "Be specific, use the actual numbers, no filler words like 'overall' or 'demonstrates'."
+        )
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=120,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text.strip()
+    except Exception:
+        return None
+
+
 def _rsi(close: pd.Series, period: int = 14) -> float | None:
     if len(close) < period + 1:
         return None
@@ -798,8 +839,47 @@ def tab_analyze(manifest: dict):
                 rec_label = rec_map.get(int(round(rec)), "—") if rec else "—"
                 st.metric("Analyst Rec", rec_label)
 
-            # ── Score radar chart ──────────────────────────────────────────────
-            col_radar, col_detail = st.columns([1, 1])
+            # ── Gauge + Radar + Detail ─────────────────────────────────────────
+            col_gauge, col_radar, col_detail = st.columns([1, 1, 1])
+
+            with col_gauge:
+                fig_gauge = go.Figure(go.Indicator(
+                    mode="gauge+number",
+                    value=score["overall"],
+                    domain={"x": [0, 1], "y": [0, 1]},
+                    title={"text": "Overall Score", "font": {"size": 13, "color": "#94a3b8"}},
+                    number={"font": {"size": 40, "color": "#f1f5f9"}, "suffix": "/10"},
+                    gauge={
+                        "axis": {
+                            "range": [0, 10],
+                            "tickvals": [0, 2, 4, 5, 7, 8, 10],
+                            "tickcolor": "#475569",
+                            "tickfont": {"size": 9, "color": "#64748b"},
+                        },
+                        "bar": {"color": overall_color, "thickness": 0.25},
+                        "bgcolor": "#0f172a",
+                        "borderwidth": 1,
+                        "bordercolor": "#334155",
+                        "steps": [
+                            {"range": [0, 4.5], "color": "rgba(239,68,68,0.12)"},
+                            {"range": [4.5, 7.0], "color": "rgba(234,179,8,0.12)"},
+                            {"range": [7.0, 10], "color": "rgba(34,197,94,0.12)"},
+                        ],
+                        "threshold": {
+                            "line": {"color": overall_color, "width": 4},
+                            "thickness": 0.8,
+                            "value": score["overall"],
+                        },
+                    },
+                ))
+                fig_gauge.update_layout(
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    font_color="#94a3b8",
+                    height=230,
+                    margin=dict(l=15, r=15, t=40, b=10),
+                )
+                st.plotly_chart(fig_gauge, use_container_width=True)
+
             with col_radar:
                 factors = score["factors"]
                 _radar_fills = {
@@ -821,20 +901,20 @@ def tab_analyze(manifest: dict):
                     ),
                     paper_bgcolor="rgba(0,0,0,0)",
                     font_color="#94a3b8",
-                    margin=dict(l=30, r=30, t=30, b=30),
+                    margin=dict(l=20, r=20, t=30, b=20),
+                    height=230,
                     showlegend=False,
                 )
                 st.plotly_chart(fig_radar, use_container_width=True)
 
             with col_detail:
-                st.markdown(f"#### {score['light']} Overall Score: **{score['overall']:.1f} / 10**")
                 st.markdown(f"**Sector:** {sector}")
-                st.markdown(f"**Market Cap:** {_fmt_large(info.get('marketCap'))}")
+                st.markdown(f"**Market Cap:** {_fmt_large(_sf(info.get('marketCap')))}")
                 _52lo = _sf(info.get("fiftyTwoWeekLow"))
                 _52hi = _sf(info.get("fiftyTwoWeekHigh"))
                 _52_str = (f"${_52lo:.2f} – ${_52hi:.2f}" if (_52lo and _52hi) else "—")
                 st.markdown(f"**52w Range:** {_52_str}")
-
+                st.markdown("---")
                 st.markdown("**Factor Breakdown:**")
                 for fname, fscore in factors.items():
                     light = "🟢" if fscore >= 7 else ("🟡" if fscore >= 4.5 else "🔴")
@@ -844,6 +924,22 @@ def tab_analyze(manifest: dict):
                         f"<span style='color:#334155;font-size:10px;'>{bar}</span>",
                         unsafe_allow_html=True,
                     )
+
+            # ── AI Thesis ──────────────────────────────────────────────────────
+            thesis = generate_ai_thesis(tkr, score)
+            if thesis:
+                st.markdown(
+                    f"""<div style="background:linear-gradient(135deg,#1e1b4b,#1e293b);
+                        border:1px solid #4f46e5;border-radius:10px;padding:14px 18px;
+                        margin:12px 0;">
+                      <div style="font-size:11px;color:#818cf8;font-weight:600;
+                          letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">
+                        🤖 AI Thesis
+                      </div>
+                      <div style="color:#e2e8f0;font-size:14px;line-height:1.6;">{thesis}</div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
 
             # ── Price chart ────────────────────────────────────────────────────
             if not hist.empty:
@@ -915,11 +1011,59 @@ def tab_analyze(manifest: dict):
                     st.metric(label, val)
 
             # ── Analyst coverage ────────────────────────────────────────────────
-            n_analysts = info.get("numberOfAnalystOpinions") or info.get("recommendationKey")
-            if n_analysts and isinstance(n_analysts, int):
-                st.caption(f"Based on {n_analysts} analyst opinions.")
+            n_analysts = _sf(info.get("numberOfAnalystOpinions"))
+            if n_analysts:
+                st.caption(f"Based on {int(n_analysts)} analyst opinions.")
+
+            # ── News headlines ─────────────────────────────────────────────────
+            st.markdown("---")
+            st.markdown("#### 📰 Recent News")
+            news_items = fetch_news(tkr)
+            if news_items:
+                for item in news_items[:6]:
+                    title     = item.get("title", "")
+                    link      = item.get("link", "#")
+                    publisher = item.get("publisher", "")
+                    pub_ts    = item.get("providerPublishTime", 0)
+                    try:
+                        pub_dt = datetime.fromtimestamp(pub_ts).strftime("%b %d") if pub_ts else ""
+                    except Exception:
+                        pub_dt = ""
+                    # Simple keyword sentiment
+                    title_lower = title.lower()
+                    pos_words   = {"beat", "surge", "rally", "growth", "record", "buy", "upgrade",
+                                   "strong", "profit", "gain", "rose", "raised", "bullish"}
+                    neg_words   = {"miss", "fall", "drop", "decline", "loss", "cut", "downgrade",
+                                   "weak", "concern", "risk", "fell", "lowered", "bearish"}
+                    pos_hits = sum(1 for w in pos_words if w in title_lower)
+                    neg_hits = sum(1 for w in neg_words if w in title_lower)
+                    if pos_hits > neg_hits:
+                        sentiment_badge = '<span style="background:#14532d;color:#86efac;font-size:10px;padding:1px 7px;border-radius:10px;">Positive</span>'
+                    elif neg_hits > pos_hits:
+                        sentiment_badge = '<span style="background:#450a0a;color:#fca5a5;font-size:10px;padding:1px 7px;border-radius:10px;">Negative</span>'
+                    else:
+                        sentiment_badge = '<span style="background:#1e293b;color:#94a3b8;font-size:10px;padding:1px 7px;border-radius:10px;">Neutral</span>'
+
+                    st.markdown(
+                        f"""<div style="padding:8px 0;border-bottom:1px solid #1e293b;">
+                          {sentiment_badge}
+                          <span style="margin-left:8px;">
+                            <a href="{link}" target="_blank"
+                               style="color:#e2e8f0;text-decoration:none;font-size:13px;">
+                              {title}
+                            </a>
+                          </span>
+                          <span style="color:#475569;font-size:11px;margin-left:8px;">
+                            {publisher} · {pub_dt}
+                          </span>
+                        </div>""",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.caption("No recent news found.")
 
             # ── Remove button ──────────────────────────────────────────────────
+            st.markdown("")
             if st.button(f"✕ Clear {tkr}", key=f"clear_{tkr}"):
                 del st.session_state.live_cache[tkr]
                 st.rerun()
