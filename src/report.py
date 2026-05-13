@@ -437,7 +437,7 @@ Activate Finnhub / Telegram by adding secrets to GitHub Actions.<br>
 </body>
 </html>"""
 
-    out = Path("public/index.html")
+    out = Path("public/report.html")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html)
     return html

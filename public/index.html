@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Watchlist Intelligence Dashboard</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+/* ── Base ────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+body { background: #07071a; color: #e0e0f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #0f0f24; }
+::-webkit-scrollbar-thumb { background: #3030a0; border-radius: 3px; }
+
+/* ── Detail panel slide-in ───────────────────────────────────── */
+#detail-panel { transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
+#detail-panel.open { transform: translateX(0); }
+#detail-overlay { opacity: 0; transition: opacity .3s; pointer-events: none; }
+#detail-overlay.open { opacity: 1; pointer-events: all; }
+
+/* ── Ticker summary tiles ────────────────────────────────────── */
+.ticker-tile { background: #0f0f24; border: 1px solid rgba(255,255,255,.08);
+  border-radius: 10px; padding: .85rem 1rem; cursor: pointer;
+  transition: border-color .15s, transform .1s; position: relative;
+  border-left-width: 4px !important; }
+.ticker-tile:hover { border-color: rgba(255,255,255,.2); transform: translateY(-1px); }
+.tile-score { font-size: 1.25rem; font-weight: 800; }
+.tile-ticker { font-size: .95rem; font-weight: 700; color: #e0e0f0; }
+.tile-name { font-size: .72rem; color: #6060a0; margin: 2px 0 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile-signal { font-size: .65rem; font-weight: 600; padding: .15rem .5rem; border-radius: 4px; color: #fff; }
+.tile-price { font-size: .82rem; font-weight: 600; margin-top: 4px; }
+.tile-pl { font-size: .75rem; margin-top: 4px; }
+.tile-meta { font-size: .68rem; color: #5050a0; margin-top: 4px; }
+.tile-actions { position: absolute; top: .5rem; right: .5rem; display: none; gap: 4px; }
+.ticker-tile:hover .tile-actions { display: flex; }
+.tile-btn { font-size: .65rem; padding: .15rem .4rem; border-radius: 4px; cursor: pointer; border: none; }
+
+/* ── Signal badge colors ─────────────────────────────────────── */
+.sig-CONFLUENCE    { background: #28a745; }
+.sig-CONSOLIDATION { background: #007bff; }
+.sig-SQUEEZE-ON    { background: #dc3545; }
+.sig-RISK-WATCH    { background: #fd7e14; }
+.sig-default       { background: #6c757d; }
+
+/* ── Modal ───────────────────────────────────────────────────── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 60;
+  display: flex; align-items: center; justify-content: center; }
+.modal-box { background: #0f0f24; border: 1px solid rgba(255,255,255,.12);
+  border-radius: 12px; padding: 1.5rem; width: 380px; max-width: 95vw; }
+.modal-input { width: 100%; background: #07071a; border: 1px solid rgba(255,255,255,.15);
+  border-radius: 6px; padding: .5rem .75rem; color: #e0e0f0; font-size: .875rem; outline: none; }
+.modal-input:focus { border-color: rgba(99,102,241,.6); }
+.modal-label { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: #6060a0; margin-bottom: 4px; display: block; }
+
+/* ── Search ──────────────────────────────────────────────────── */
+#search-results { background: #0f0f24; border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  max-height: 320px; overflow-y: auto; z-index: 50; }
+.search-result-item { padding: .65rem 1rem; cursor: pointer; display: flex; align-items: center; gap: .75rem; }
+.search-result-item:hover { background: rgba(255,255,255,.05); }
+
+/* ── Macro bar ───────────────────────────────────────────────── */
+.macro-pill { font-size: .72rem; padding: .2rem .65rem; border-radius: 8px;
+  background: rgba(255,255,255,.06); color: #9090c0; white-space: nowrap; }
+.macro-pill strong { color: #e0e0f0; }
+
+/* ── Setup notice ────────────────────────────────────────────── */
+.setup-notice { background: rgba(255,193,7,.08); border: 1px solid rgba(255,193,7,.2);
+  border-radius: 8px; padding: 1rem 1.25rem; font-size: .875rem; color: #ffc107; line-height: 1.6; }
+
+/* ── ─────────────────────────────────────────────────────────── */
+/* CARD RENDERING CSS (from report.py — must stay in sync)       */
+/* ─────────────────────────────────────────────────────────────── */
+.card { background: #fff; border: 1px solid #dee2e6; border-radius: 12px; overflow: hidden; }
+.card-hdr { display: flex; align-items: center; flex-wrap: wrap; gap: .75rem;
+  padding: 1rem 1.25rem; border-bottom: 1px solid #f0f0f0; }
+.card-hdr-dark { background: #0f0f24 !important; border-bottom: 1px solid rgba(255,255,255,.07); }
+.card-hdr-dark .ticker-name { color: #e0e0f0; }
+.card-hdr-dark .arch-tag { border-color: rgba(255,255,255,.12); color: #8080a8; background: rgba(255,255,255,.04); }
+.card-hdr-dark .flip-badge { background: rgba(255,193,7,.15); color: #ffc107; border-color: rgba(255,193,7,.3); }
+.card-hdr-dark .score-card-claude { background: #1b3224; }
+.card-hdr-dark .score-card-grok   { background: #192040; }
+.card-hdr-dark .scard-lbl { opacity: .5; }
+.card-hdr-dark .scard-meta { color: #8080a8 !important; }
+.ticker-name { font-size: 1.1rem; font-weight: 700; }
+.arch-tag { font-size: .72rem; padding: .2rem .65rem; border-radius: 12px; border: 1px solid #dee2e6; color: #6c757d; white-space: nowrap; }
+.signal-badge { font-size: .75rem; font-weight: 600; padding: .3rem .75rem; border-radius: 6px; white-space: nowrap; }
+.flip-badge { background: #fff3cd; color: #856404; border: 1px solid #ffc107; font-size: .7rem; padding: .2rem .6rem; border-radius: 4px; }
+.trend-up   { font-size: .75rem; font-weight: 700; color: #28a745; }
+.trend-down { font-size: .75rem; font-weight: 700; color: #dc3545; }
+.trend-flat { font-size: .75rem; color: #6c757d; }
+.trend-new  { font-size: .7rem; color: #adb5bd; }
+.score-cards { display: flex; gap: .5rem; flex-shrink: 0; align-items: flex-start; }
+.score-card { padding: .55rem .9rem; border-radius: 10px; min-width: 148px; max-width: 195px; position: relative; overflow: hidden; }
+.score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 10px 10px 0 0; }
+.score-card-claude { background: #d4edda; } .score-card-claude::before { background: #28a745; }
+.score-card-grok   { background: #dbeafe; } .score-card-grok::before   { background: #3b82f6; }
+.scard-header { display: flex; align-items: baseline; gap: .35rem; margin-bottom: .1rem; }
+.scard-num    { font-size: 1.25rem; font-weight: 700; }
+.scard-lbl    { font-size: .7rem; font-weight: 600; opacity: .65; }
+.scard-signal { font-size: .78rem; font-weight: 600; margin-bottom: .15rem; }
+.scard-meta   { font-size: .68rem; opacity: .8; }
+.dark-body { background: #1a1a2e; }
+.dark-body .metrics-strip { background: #12122a; border-bottom: 1px solid rgba(255,255,255,.07); }
+.dark-body .ms-price { color: #e0e0f0; }
+.dark-body .ms-key   { color: #6060a0; }
+.dark-body .ms-val   { color: #c8c8e0; }
+.dark-body .ms-item  { border-right-color: rgba(255,255,255,.07); }
+.dark-body .ms-price-area { border-right-color: rgba(255,255,255,.15); }
+.dark-body .ms-tag-green  { background: rgba(40,167,69,.28); color: #7ec89e; }
+.dark-body .ms-tag-yellow { background: rgba(255,193,7,.22); color: #ffc107; }
+.dark-body .ms-tag-red    { background: rgba(220,53,69,.28); color: #f08888; }
+.dark-body .info-panel    { border-color: rgba(255,255,255,.1); background: #1a1a2e; }
+.dark-body .info-thesis   { border-bottom-color: rgba(255,255,255,.08); color: #c8c8e0; }
+.dark-body .info-act      { border-left-color: rgba(255,255,255,.1); }
+.dark-body .info-insight  { background: rgba(255,193,7,.12); color: #ffc107; border-top-color: rgba(255,255,255,.08); }
+.dark-body .info-kw       { color: #6060a0; }
+.dark-body .section-title { color: #6060a0; }
+.dark-body .flags-panel-hdr { color: #6060a0; }
+.dark-body .flag-bull { background: rgba(40,167,69,.18); color: #7ec89e; border: 1px solid rgba(40,167,69,.25); }
+.dark-body .flag-bear { background: rgba(220,53,69,.18); color: #f08888; border: 1px solid rgba(220,53,69,.25); }
+.dark-body .sparkline-wrap  { padding: 0 1.25rem 1rem; }
+.dark-body .sparkline-label { color: #6060a0; }
+.dark-signals { border-left: 1px solid rgba(255,255,255,.07); padding: .9rem 1.25rem; display: flex; flex-direction: column; }
+.metrics-strip { display: flex; flex-wrap: wrap; padding: .45rem 1.25rem .3rem; border-bottom: 1px solid #f0f0f0; gap: 0; align-items: center; }
+.ms-price-area { display: inline-flex; align-items: center; gap: .5rem; padding: .25rem .9rem .25rem 0; margin-right: .3rem; border-right: 2px solid #e9ecef; }
+.ms-price  { font-size: 1.05rem; font-weight: 700; color: #212529; }
+.ms-change { font-size: .82rem; font-weight: 600; }
+.ms-item   { display: inline-flex; align-items: center; gap: .3rem; padding: .25rem .8rem; border-right: 1px solid #f0f0f0; white-space: nowrap; }
+.ms-item:last-child { border-right: none; }
+.ms-key    { color: #adb5bd; font-size: .7rem; }
+.ms-val    { font-weight: 600; font-size: .82rem; }
+.ms-tag    { font-size: .63rem; padding: .1rem .4rem; border-radius: 8px; font-weight: 500; }
+.ms-tag-green  { background: #d4edda; color: #155724; }
+.ms-tag-yellow { background: #fff3cd; color: #856404; }
+.ms-tag-red    { background: #f8d7da; color: #721c24; }
+.info-panel { margin: .75rem 1.25rem .25rem; border: 1px solid #e9ecef; border-radius: 8px; overflow: hidden; font-size: .875rem; }
+.info-thesis { padding: .55rem .9rem; background: #f8f9fa; border-bottom: 1px solid #e9ecef; line-height: 1.5; }
+.info-sit-act { display: grid; grid-template-columns: 1fr 1fr; }
+.info-sit { padding: .5rem .9rem; line-height: 1.45; }
+.info-act { padding: .5rem .9rem; line-height: 1.45; border-left: 1px solid #e9ecef; }
+.info-insight { padding: .45rem .9rem; background: #fff3cd; border-top: 1px solid #e9ecef; line-height: 1.45; }
+.info-kw { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: #6c757d; display: block; margin-bottom: 3px; }
+.card-body-grid { display: grid; grid-template-columns: 1fr 420px; gap: 0; align-items: start; }
+@media (max-width: 900px) { .card-body-grid { grid-template-columns: 1fr; } }
+.section-title { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #6c757d; margin-bottom: .6rem; }
+.cat-grid { display: flex; flex-direction: column; gap: 3px; }
+.cat-details { border-radius: 6px; overflow: hidden; background: #1a1a2e; }
+.cat-details summary { display: flex; align-items: center; gap: 8px; font-size: .8rem; cursor: pointer; padding: 6px 8px; border-radius: 6px; list-style: none; user-select: none; color: #c8c8e0; }
+.cat-details summary::-webkit-details-marker { display: none; }
+.cat-details summary:hover { background: rgba(255,255,255,.07); }
+.cat-details[open] summary { background: rgba(255,255,255,.07); border-radius: 6px 6px 0 0; }
+.cat-expand-icon { font-size: .55rem; color: #7070a0; flex-shrink: 0; width: 12px; display: inline-block; transition: transform .15s; }
+.cat-details[open] .cat-expand-icon { transform: rotate(90deg); }
+.cat-body { background: #12122a; border-radius: 0 0 6px 6px; padding: .4rem .6rem .5rem 1.5rem; font-size: .75rem; border-top: 1px solid rgba(255,255,255,.08); }
+.cat-flag-bull { color: #7ec89e; line-height: 1.5; padding: 1px 0; }
+.cat-flag-bear { color: #f08888; line-height: 1.5; padding: 1px 0; }
+.cat-flag-bull::before { content: "▲"; margin-right: .3rem; font-size: .65rem; }
+.cat-flag-bear::before { content: "▼"; margin-right: .3rem; font-size: .65rem; }
+.cat-name  { flex: 0 0 128px; color: #c0c0d8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat-score { font-weight: 700; min-width: 28px; text-align: right; font-size: .85rem; }
+.cat-bar-wrap { flex: 1; height: 5px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
+.cat-bar { height: 100%; border-radius: 3px; }
+.flags-panel-hdr { font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: #6c757d; margin-bottom: .6rem; }
+.flag { font-size: .8rem; padding: .3rem .6rem; border-radius: 5px; line-height: 1.4; }
+.flag-bull { background: #d4edda; color: #155724; }
+.flag-bear { background: #f8d7da; color: #721c24; }
+.sparkline-wrap { padding: 0 1.25rem .75rem; }
+.sparkline-label { font-size: .65rem; color: #6c757d; margin-bottom: 3px; }
+.score-badge { font-size: 1rem; font-weight: 700; padding: .3rem .8rem; border-radius: 20px; border: 2px solid; }
+.divergence { margin: 0 1.25rem .75rem; padding: .6rem .9rem; background: #fff3cd; border: 1px solid #ffc107; border-radius: 6px; font-size: .8rem; line-height: 1.5; }
+.updated { font-size: .65rem; color: #adb5bd; margin-top: 3px; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- ══════════════════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════════════════════ -->
+<header class="bg-[#0f0f24] border-b border-white/10 sticky top-0 z-30">
+  <div class="max-w-screen-2xl mx-auto px-4 py-3 flex items-center gap-4 flex-wrap">
+    <!-- Logo -->
+    <div class="flex-shrink-0">
+      <span class="text-base font-bold text-indigo-300">📈 Watchlist Intelligence</span>
+      <div id="run-meta" class="text-xs text-indigo-500 mt-0.5"></div>
+    </div>
+
+    <!-- Search -->
+    <div class="relative flex-1 min-w-[200px] max-w-sm" id="search-wrap">
+      <input id="search-input" type="text" placeholder="Search ticker (e.g. NVDA, TSM)…"
+        class="w-full bg-[#07071a] border border-white/15 rounded-lg px-4 py-2 text-sm text-gray-200 placeholder-gray-600 outline-none focus:border-indigo-500 transition">
+      <div id="search-results" class="hidden"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-2 flex-shrink-0 ml-auto">
+      <a id="report-link" href="report.html" target="_blank"
+        class="text-xs px-3 py-2 bg-indigo-900/50 hover:bg-indigo-800/60 border border-indigo-700/50 rounded-lg text-indigo-300 transition">
+        Full Report ↗
+      </a>
+      <button onclick="showUploadModal()"
+        class="text-xs px-3 py-2 bg-[#1a1a2e] hover:bg-[#252540] border border-white/10 rounded-lg text-gray-400 transition">
+        ↑ Upload CSV
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MACRO BAR
+══════════════════════════════════════════════════════════════════ -->
+<div id="macro-bar" class="hidden bg-[#0a0a20] border-b border-white/5 px-4 py-1.5">
+  <div class="max-w-screen-2xl mx-auto flex gap-3 flex-wrap items-center"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════════════════════════ -->
+<main class="max-w-screen-2xl mx-auto px-4 py-6">
+
+  <!-- Setup notice (shown before first pipeline run) -->
+  <div id="setup-notice" class="hidden setup-notice mb-6">
+    <strong>Dashboard not yet populated.</strong> Run the pipeline first:<br>
+    <code class="text-xs bg-black/30 px-2 py-0.5 rounded">python src/main.py --group owned</code>
+    or trigger via GitHub Actions → <em>Weekly watchlist digest</em> → Run workflow.
+  </div>
+
+  <!-- ── Portfolio ─────────────────────────────────────── -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-indigo-300">Portfolio</h2>
+      <div id="portfolio-stats" class="text-xs text-gray-500"></div>
+      <div class="ml-auto flex gap-2">
+        <button onclick="showAddModal('portfolio')"
+          class="text-xs px-3 py-1.5 bg-indigo-900/40 hover:bg-indigo-800/50 border border-indigo-700/40 rounded-lg text-indigo-300 transition">
+          + Add
+        </button>
+      </div>
+    </div>
+    <div id="portfolio-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"></div>
+    <div id="portfolio-empty" class="hidden text-sm text-gray-600 py-4">
+      No portfolio positions yet. Add a ticker or upload a CSV.
+    </div>
+  </section>
+
+  <!-- ── Watchlist ─────────────────────────────────────── -->
+  <section class="mb-8">
+    <div class="flex items-center gap-3 mb-3">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-purple-300">Watchlist</h2>
+      <div class="ml-auto">
+        <button onclick="showAddModal('watchlist')"
+          class="text-xs px-3 py-1.5 bg-purple-900/40 hover:bg-purple-800/50 border border-purple-700/40 rounded-lg text-purple-300 transition">
+          + Add
+        </button>
+      </div>
+    </div>
+    <div id="watchlist-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"></div>
+    <div id="watchlist-empty" class="hidden text-sm text-gray-600 py-4">
+      No watchlist tickers yet. Add one to track it.
+    </div>
+  </section>
+
+  <!-- ── All Analyzed Tickers ──────────────────────────── -->
+  <section>
+    <div class="flex items-center gap-3 mb-3">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500">All Analyzed</h2>
+      <span id="all-count" class="text-xs text-gray-600"></span>
+    </div>
+    <div id="all-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3"></div>
+  </section>
+
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════
+     DETAIL SLIDE-IN PANEL
+══════════════════════════════════════════════════════════════════ -->
+<div id="detail-overlay" class="fixed inset-0 bg-black/60 z-40" onclick="closeDetail()"></div>
+<div id="detail-panel" class="fixed right-0 top-0 h-full w-full md:w-4/5 lg:w-3/4 xl:w-2/3 bg-[#07071a] overflow-y-auto z-50 border-l border-white/10">
+  <div class="sticky top-0 bg-[#07071a] border-b border-white/10 px-4 py-3 flex items-center gap-3 z-10">
+    <button onclick="closeDetail()" class="text-gray-400 hover:text-white text-sm transition">← Back</button>
+    <span id="detail-breadcrumb" class="text-sm text-gray-500"></span>
+    <div class="ml-auto flex gap-2">
+      <button id="detail-add-portfolio" onclick="quickAddPortfolio()" class="text-xs px-3 py-1 bg-indigo-900/40 border border-indigo-700/30 rounded text-indigo-300 hover:bg-indigo-800/50 transition">+ Portfolio</button>
+      <button id="detail-add-watchlist" onclick="quickAddWatchlist()" class="text-xs px-3 py-1 bg-purple-900/40 border border-purple-700/30 rounded text-purple-300 hover:bg-purple-800/50 transition">+ Watchlist</button>
+    </div>
+  </div>
+  <div id="detail-content" class="p-0"></div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     MODALS
+══════════════════════════════════════════════════════════════════ -->
+
+<!-- Add portfolio/watchlist entry -->
+<div id="add-modal" class="modal-overlay hidden" onclick="closeModal('add-modal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3 id="add-modal-title" class="text-sm font-bold text-gray-200 mb-4"></h3>
+    <div class="space-y-3">
+      <div>
+        <label class="modal-label">Ticker</label>
+        <input id="add-ticker" class="modal-input" placeholder="e.g. NVDA" style="text-transform:uppercase">
+      </div>
+      <div id="add-shares-row">
+        <label class="modal-label">Shares</label>
+        <input id="add-shares" class="modal-input" type="number" placeholder="e.g. 10">
+      </div>
+      <div id="add-cost-row">
+        <label class="modal-label">Cost Basis (per share $)</label>
+        <input id="add-cost" class="modal-input" type="number" placeholder="e.g. 450.00" step="0.01">
+      </div>
+      <div>
+        <label class="modal-label">Notes (optional)</label>
+        <input id="add-notes" class="modal-input" placeholder="e.g. Core AI holding">
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="submitAdd()"
+        class="flex-1 py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm text-white transition">Add</button>
+      <button onclick="closeModal('add-modal')"
+        class="px-4 py-2 bg-[#1a1a2e] border border-white/10 rounded-lg text-sm text-gray-400 hover:text-gray-200 transition">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Upload CSV -->
+<div id="upload-modal" class="modal-overlay hidden" onclick="closeModal('upload-modal')">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <h3 class="text-sm font-bold text-gray-200 mb-2">Upload Portfolio / Watchlist CSV</h3>
+    <p class="text-xs text-gray-500 mb-4 leading-relaxed">
+      Portfolio CSV: <code class="bg-black/30 px-1 rounded">ticker, shares, cost_basis, notes</code><br>
+      Watchlist CSV: <code class="bg-black/30 px-1 rounded">ticker, notes</code>
+    </p>
+    <div class="space-y-3">
+      <div>
+        <label class="modal-label">Upload type</label>
+        <select id="upload-type" class="modal-input">
+          <option value="portfolio">Portfolio</option>
+          <option value="watchlist">Watchlist</option>
+        </select>
+      </div>
+      <div>
+        <label class="modal-label">CSV File</label>
+        <input id="upload-file" type="file" accept=".csv,.txt"
+          class="modal-input py-1.5 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:bg-indigo-800 file:text-indigo-200">
+      </div>
+      <div>
+        <label class="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
+          <input id="upload-replace" type="checkbox" class="rounded">
+          Replace existing entries (otherwise merge)
+        </label>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="submitUpload()"
+        class="flex-1 py-2 bg-indigo-700 hover:bg-indigo-600 rounded-lg text-sm text-white transition">Upload</button>
+      <button onclick="closeModal('upload-modal')"
+        class="px-4 py-2 bg-[#1a1a2e] border border-white/10 rounded-lg text-sm text-gray-400 hover:text-gray-200 transition">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════════════════════════ -->
+<script>
+// ── State ─────────────────────────────────────────────────────
+const S = {
+  manifest:    null,           // manifest.json
+  portfolio:   [],             // [{ticker, shares, cost_basis, notes}]
+  watchlist:   [],             // [{ticker, notes}]
+  cache:       {},             // {ticker: full json}
+  activeTicker: null,          // currently open detail
+  addMode:     'portfolio',    // modal state
+};
+
+// ── Constants ─────────────────────────────────────────────────
+const LIGHT_COLOR  = { green: '#7ec89e', yellow: '#ffc107', red: '#f08888', gray: '#6060a0' };
+const LIGHT_BORDER = { green: '#28a745', yellow: '#ffc107', red: '#dc3545', gray: '#5050a0' };
+const SIGNAL_CSS   = { CONFLUENCE: '#28a745', 'SQUEEZE ON': '#dc3545', CONSOLIDATION: '#007bff', 'RISK WATCH': '#fd7e14' };
+
+// ── Init ──────────────────────────────────────────────────────
+async function init() {
+  restoreState();
+  try {
+    const res = await fetch('data/manifest.json');
+    if (!res.ok) throw new Error('not found');
+    S.manifest = await res.json();
+    document.getElementById('run-meta').textContent =
+      `Last run: ${S.manifest.run_date} · ${S.manifest.total} tickers`;
+    document.getElementById('all-count').textContent = `${S.manifest.total} tickers`;
+    renderAll();
+  } catch (e) {
+    document.getElementById('setup-notice').classList.remove('hidden');
+    renderAll(); // still render portfolio/watchlist from localStorage
+  }
+}
+
+function restoreState() {
+  try { S.portfolio = JSON.parse(localStorage.getItem('wl_portfolio') || '[]'); } catch {}
+  try { S.watchlist = JSON.parse(localStorage.getItem('wl_watchlist') || '[]'); } catch {}
+}
+function saveState() {
+  localStorage.setItem('wl_portfolio', JSON.stringify(S.portfolio));
+  localStorage.setItem('wl_watchlist', JSON.stringify(S.watchlist));
+}
+
+// ── Manifest helpers ──────────────────────────────────────────
+function getTickerData(ticker) {
+  if (!S.manifest) return null;
+  return S.manifest.tickers.find(t => t.ticker === ticker) || null;
+}
+
+// ── Rendering ─────────────────────────────────────────────────
+function renderAll() {
+  renderPortfolio();
+  renderWatchlist();
+  renderAllGrid();
+}
+
+function renderPortfolio() {
+  const grid = document.getElementById('portfolio-grid');
+  const empty = document.getElementById('portfolio-empty');
+  const statsEl = document.getElementById('portfolio-stats');
+  if (!S.portfolio.length) { grid.innerHTML = ''; empty.classList.remove('hidden'); statsEl.textContent = ''; return; }
+  empty.classList.add('hidden');
+
+  let totalCost = 0, totalValue = 0;
+  grid.innerHTML = S.portfolio.map(h => {
+    const td = getTickerData(h.ticker);
+    if (td && td.price && h.shares && h.cost_basis) {
+      totalCost  += h.shares * h.cost_basis;
+      totalValue += h.shares * td.price;
+    }
+    return makeTile(h.ticker, td, h, 'portfolio');
+  }).join('');
+
+  if (totalCost > 0) {
+    const pl = totalValue - totalCost;
+    const plPct = (pl / totalCost) * 100;
+    const plColor = pl >= 0 ? '#7ec89e' : '#f08888';
+    statsEl.innerHTML = `Total: <strong style="color:#e0e0f0">$${fmt(totalValue)}</strong> &nbsp; P&amp;L: <strong style="color:${plColor}">${pl>=0?'+':''}$${fmt(pl)} (${plPct>=0?'+':''}${plPct.toFixed(1)}%)</strong>`;
+  }
+}
+
+function renderWatchlist() {
+  const grid = document.getElementById('watchlist-grid');
+  const empty = document.getElementById('watchlist-empty');
+  if (!S.watchlist.length) { grid.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  grid.innerHTML = S.watchlist.map(w => {
+    const td = getTickerData(w.ticker);
+    return makeTile(w.ticker, td, w, 'watchlist');
+  }).join('');
+}
+
+function renderAllGrid() {
+  const grid = document.getElementById('all-grid');
+  if (!S.manifest) { grid.innerHTML = ''; return; }
+  // Show all manifest tickers not already in portfolio or watchlist
+  const portfolioSet = new Set(S.portfolio.map(h => h.ticker));
+  const watchlistSet = new Set(S.watchlist.map(w => w.ticker));
+  const rest = S.manifest.tickers.filter(
+    t => !portfolioSet.has(t.ticker) && !watchlistSet.has(t.ticker)
+  );
+  grid.innerHTML = rest.map(td => makeTile(td.ticker, td, null, 'all')).join('');
+}
+
+function makeTile(ticker, td, holding, section) {
+  const light  = td ? td.light : 'gray';
+  const score  = td ? td.score : '—';
+  const price  = td ? td.price : null;
+  const chg    = td ? td.price_change_1d : null;
+  const signal = td ? td.signal : '';
+  const name   = td ? td.name  : (holding ? '' : ticker);
+
+  const borderColor = LIGHT_BORDER[light] || LIGHT_BORDER.gray;
+  const scoreColor  = LIGHT_COLOR[light]  || LIGHT_COLOR.gray;
+  const chgColor    = chg && chg > 0 ? '#7ec89e' : (chg && chg < 0 ? '#f08888' : '#9090b0');
+  const chgStr      = chg ? `${chg > 0 ? '+' : ''}${(chg * 100).toFixed(2)}%` : '';
+  const sigBg       = SIGNAL_CSS[signal] || '#6c757d';
+  const sigLabel    = signal.replace(' ', '-');
+
+  let holdingsHtml = '';
+  if (section === 'portfolio' && holding && holding.shares && td && td.price) {
+    const curVal = holding.shares * td.price;
+    const costVal = holding.shares * (holding.cost_basis || 0);
+    const pl = curVal - costVal;
+    const plPct = costVal > 0 ? (pl / costVal) * 100 : 0;
+    const plColor = pl >= 0 ? '#7ec89e' : '#f08888';
+    holdingsHtml = `<div class="tile-pl" style="color:${plColor}">${holding.shares} sh · ${pl >= 0 ? '+' : ''}$${fmt(pl)} (${plPct >= 0 ? '+' : ''}${plPct.toFixed(1)}%)</div>`;
+  } else if (holding && holding.notes) {
+    holdingsHtml = `<div class="tile-meta">${holding.notes}</div>`;
+  }
+
+  const removeBtn = (section === 'portfolio' || section === 'watchlist')
+    ? `<button class="tile-btn bg-red-900/40 text-red-400 hover:bg-red-800/50"
+         onclick="event.stopPropagation();removeEntry('${ticker}','${section}')">✕</button>`
+    : `<button class="tile-btn bg-indigo-900/30 text-indigo-400 hover:bg-indigo-800/40"
+         onclick="event.stopPropagation();quickAdd('${ticker}','portfolio')" title="Add to portfolio">+P</button>
+       <button class="tile-btn bg-purple-900/30 text-purple-400 hover:bg-purple-800/40"
+         onclick="event.stopPropagation();quickAdd('${ticker}','watchlist')" title="Add to watchlist">+W</button>`;
+
+  return `<div class="ticker-tile" style="border-left-color:${borderColor}" onclick="openDetail('${ticker}')">
+    <div class="tile-actions">${removeBtn}</div>
+    <div class="flex justify-between items-start mb-0.5">
+      <span class="tile-ticker">${ticker}</span>
+      <span class="tile-score" style="color:${scoreColor}">${score}</span>
+    </div>
+    <div class="tile-name">${name}</div>
+    ${signal ? `<span class="tile-signal" style="background:${sigBg}">${signal}</span>` : ''}
+    ${price ? `<div class="tile-price">$${price.toFixed(2)} <span style="color:${chgColor}">${chgStr}</span></div>` : ''}
+    ${holdingsHtml}
+  </div>`;
+}
+
+// ── Detail panel ──────────────────────────────────────────────
+async function openDetail(ticker) {
+  S.activeTicker = ticker;
+  document.getElementById('detail-breadcrumb').textContent = ticker;
+  document.getElementById('detail-content').innerHTML =
+    `<div class="p-8 text-center text-gray-600 text-sm">Loading ${ticker}…</div>`;
+  showPanel();
+
+  try {
+    let data = S.cache[ticker];
+    if (!data) {
+      const res = await fetch(`data/${ticker}.json`);
+      if (!res.ok) throw new Error('not found');
+      data = await res.json();
+      S.cache[ticker] = data;
+    }
+    document.getElementById('detail-breadcrumb').textContent = `${ticker} — ${data.name || ''}`;
+    document.getElementById('detail-content').innerHTML = data.card_html || notFoundHtml(ticker);
+  } catch (e) {
+    document.getElementById('detail-content').innerHTML = notFoundHtml(ticker);
+  }
+}
+
+function notFoundHtml(ticker) {
+  return `<div class="p-8 text-center text-gray-600 text-sm">
+    No pre-generated data for <strong class="text-gray-400">${ticker}</strong>.<br>
+    Add it to your watchlist and run the pipeline to analyze it.
+  </div>`;
+}
+
+function showPanel() {
+  document.getElementById('detail-panel').classList.add('open');
+  document.getElementById('detail-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  document.getElementById('detail-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+  S.activeTicker = null;
+}
+
+// ── Quick add from detail panel ───────────────────────────────
+function quickAddPortfolio() {
+  if (!S.activeTicker) return;
+  showAddModal('portfolio', S.activeTicker);
+}
+function quickAddWatchlist() {
+  if (!S.activeTicker) return;
+  quickAdd(S.activeTicker, 'watchlist');
+}
+function quickAdd(ticker, section) {
+  if (section === 'watchlist') {
+    if (!S.watchlist.find(w => w.ticker === ticker)) {
+      S.watchlist.push({ ticker, notes: '', added: new Date().toISOString().slice(0,10) });
+      saveState(); renderAll();
+    }
+  } else {
+    showAddModal('portfolio', ticker);
+  }
+}
+
+// ── Remove entry ──────────────────────────────────────────────
+function removeEntry(ticker, section) {
+  if (section === 'portfolio') {
+    S.portfolio = S.portfolio.filter(h => h.ticker !== ticker);
+  } else if (section === 'watchlist') {
+    S.watchlist = S.watchlist.filter(w => w.ticker !== ticker);
+  }
+  saveState(); renderAll();
+}
+
+// ── Search ─────────────────────────────────────────────────────
+const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+
+searchInput.addEventListener('input', debounce(doSearch, 150));
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { searchResults.classList.add('hidden'); searchInput.blur(); }
+  if (e.key === 'Enter') {
+    const q = searchInput.value.trim().toUpperCase();
+    if (q) tryOpenTicker(q);
+  }
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('search-wrap').contains(e.target)) {
+    searchResults.classList.add('hidden');
+  }
+});
+
+function doSearch() {
+  const q = searchInput.value.trim().toUpperCase();
+  if (!q || !S.manifest) { searchResults.classList.add('hidden'); return; }
+  const matches = S.manifest.tickers.filter(t =>
+    t.ticker.includes(q) || t.name.toUpperCase().includes(q)
+  ).slice(0, 8);
+
+  if (!matches.length) {
+    searchResults.innerHTML = `<div class="search-result-item text-gray-500 text-sm">No results for "${q}" — run pipeline to analyze new tickers.</div>`;
+  } else {
+    searchResults.innerHTML = matches.map(t => {
+      const sc = LIGHT_COLOR[t.light] || LIGHT_COLOR.gray;
+      const chg = t.price_change_1d;
+      const chgStr = chg ? `<span style="color:${chg>0?'#7ec89e':'#f08888'}">${chg>0?'+':''}${(chg*100).toFixed(1)}%</span>` : '';
+      return `<div class="search-result-item" onclick="searchSelect('${t.ticker}')">
+        <span class="font-bold text-sm" style="color:${sc}">${t.ticker}</span>
+        <span class="text-xs text-gray-400 flex-1 truncate">${t.name}</span>
+        <span class="text-xs font-bold" style="color:${sc}">${t.score}</span>
+        ${t.price ? `<span class="text-xs text-gray-500">$${t.price.toFixed(0)}</span>` : ''}
+        ${chgStr}
+      </div>`;
+    }).join('');
+  }
+  searchResults.classList.remove('hidden');
+}
+
+function searchSelect(ticker) {
+  searchInput.value = ticker;
+  searchResults.classList.add('hidden');
+  openDetail(ticker);
+}
+function tryOpenTicker(ticker) {
+  searchResults.classList.add('hidden');
+  openDetail(ticker);
+}
+
+// ── Modals ────────────────────────────────────────────────────
+function showAddModal(section, ticker = '') {
+  S.addMode = section;
+  const isPortfolio = section === 'portfolio';
+  document.getElementById('add-modal-title').textContent = isPortfolio ? 'Add to Portfolio' : 'Add to Watchlist';
+  document.getElementById('add-ticker').value = ticker;
+  document.getElementById('add-shares-row').style.display = isPortfolio ? '' : 'none';
+  document.getElementById('add-cost-row').style.display   = isPortfolio ? '' : 'none';
+  document.getElementById('add-shares').value = '';
+  document.getElementById('add-cost').value   = '';
+  document.getElementById('add-notes').value  = '';
+  document.getElementById('add-modal').classList.remove('hidden');
+}
+
+function submitAdd() {
+  const ticker = document.getElementById('add-ticker').value.trim().toUpperCase();
+  if (!ticker) return;
+  if (S.addMode === 'portfolio') {
+    const shares     = parseFloat(document.getElementById('add-shares').value) || 0;
+    const cost_basis = parseFloat(document.getElementById('add-cost').value)   || 0;
+    const notes      = document.getElementById('add-notes').value.trim();
+    const existing   = S.portfolio.findIndex(h => h.ticker === ticker);
+    if (existing >= 0) S.portfolio[existing] = { ticker, shares, cost_basis, notes };
+    else S.portfolio.push({ ticker, shares, cost_basis, notes });
+  } else {
+    const notes = document.getElementById('add-notes').value.trim();
+    if (!S.watchlist.find(w => w.ticker === ticker)) {
+      S.watchlist.push({ ticker, notes, added: new Date().toISOString().slice(0,10) });
+    }
+  }
+  saveState(); renderAll();
+  closeModal('add-modal');
+}
+
+function showUploadModal() {
+  document.getElementById('upload-modal').classList.remove('hidden');
+}
+
+function submitUpload() {
+  const file = document.getElementById('upload-file').files[0];
+  const type = document.getElementById('upload-type').value;
+  const replace = document.getElementById('upload-replace').checked;
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const rows = e.target.result.split('\n').filter(r => r.trim());
+    const header = rows[0].toLowerCase();
+    const dataRows = header.includes('ticker') ? rows.slice(1) : rows;
+    const parsed = [];
+    for (const row of dataRows) {
+      const cols = row.split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      if (!cols[0]) continue;
+      const ticker = cols[0].toUpperCase();
+      if (type === 'portfolio') {
+        parsed.push({ ticker, shares: parseFloat(cols[1]) || 0, cost_basis: parseFloat(cols[2]) || 0, notes: cols[3] || '' });
+      } else {
+        parsed.push({ ticker, notes: cols[1] || '' });
+      }
+    }
+    if (replace) {
+      if (type === 'portfolio') S.portfolio = parsed;
+      else S.watchlist = parsed;
+    } else {
+      const existing = new Set((type === 'portfolio' ? S.portfolio : S.watchlist).map(x => x.ticker));
+      const newEntries = parsed.filter(p => !existing.has(p.ticker));
+      if (type === 'portfolio') S.portfolio.push(...newEntries);
+      else S.watchlist.push(...newEntries);
+    }
+    saveState(); renderAll();
+    closeModal('upload-modal');
+  };
+  reader.readAsText(file);
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+}
+
+// ── Utilities ─────────────────────────────────────────────────
+function fmt(n) {
+  if (Math.abs(n) >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (Math.abs(n) >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return n.toFixed(0);
+}
+function debounce(fn, delay) {
+  let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
+}
+
+// ── Boot ──────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

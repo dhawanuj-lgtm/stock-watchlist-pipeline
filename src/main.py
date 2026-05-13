@@ -39,6 +39,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent))
 
 from fetcher       import fetch_ticker
+from dashboard     import generate_dashboard_json
 from scorer        import score_ticker
 from signals       import detect_signal, save_cache
 from thesis_ai     import generate_thesis
@@ -393,7 +394,7 @@ def run(
     # ── Score history map for sparklines ─────────────────────────────────────
     history_map = {r["ticker"]: read_history(r["ticker"], n_weeks=12) for r in all_results}
 
-    # 6. Detailed HTML report → public/index.html
+    # 6a. Detailed HTML report → public/report.html
     generate_report(
         all_results,
         run_date,
@@ -401,7 +402,14 @@ def run(
         history_map=history_map,
         accuracy_report=accuracy_report,
     )
-    log.info("✓ Detailed report written to public/index.html")
+    log.info("✓ Detailed report written to public/report.html")
+
+    # 6b. Dashboard JSON data → public/data/*.json
+    try:
+        generate_dashboard_json(all_results, run_date, history_map=history_map)
+        log.info("✓ Dashboard JSON written to public/data/")
+    except Exception as e:
+        log.warning(f"Dashboard JSON generation failed (non-fatal): {e}")
 
     # 7. TLDR email
     if send:
