@@ -1,0 +1,47 @@
+# ── Deploy static dashboard to GitHub Pages on every push ──────────────────
+# This is a fast, cheap deploy — it does NOT run the Python pipeline.
+# It just takes whatever is in public/ from git (index.html, etc.) and
+# merges it with the latest data files from the previous pipeline run.
+#
+# Triggers: any push to main that touches public/ or src/
+# Runtime: ~30 seconds (vs 5–8 min for the full pipeline)
+
+name: Deploy dashboard to Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "public/**"
+      - "src/**"
+      - ".github/workflows/deploy-pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Upload Pages artifact (static files only)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
