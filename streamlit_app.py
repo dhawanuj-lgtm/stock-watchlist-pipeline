@@ -733,12 +733,14 @@ def tab_home(manifest: dict):
             )
 
     # ── Score history sparkline (if history CSV exists) ────────────────────────
+    # History is stored as one CSV per ticker: data/history/{TICKER}.csv
+    # Columns: date, score, signal, price, score_light, bull_count, bear_count
     history_dir = Path("data/history")
     if history_dir.exists():
-        csv_files = sorted(history_dir.glob("*.csv"))
+        csv_files = list(history_dir.glob("*.csv"))
         if csv_files:
             st.markdown("---")
-            st.markdown("#### 📈 Score Trend (last 8 weeks)")
+            st.markdown("#### 📈 Score Trend (last 8 runs)")
             ticker_options = [t["ticker"] for t in top_tickers]
             sel = st.multiselect(
                 "Select tickers", ticker_options, default=ticker_options[:3],
@@ -746,18 +748,26 @@ def tab_home(manifest: dict):
             )
             if sel:
                 dfs = []
-                for csv_f in csv_files[-8:]:
+                for csv_f in csv_files:
+                    tkr_name = csv_f.stem          # filename stem = ticker symbol
+                    if tkr_name not in sel:
+                        continue
                     try:
                         df_w = pd.read_csv(csv_f)
-                        df_w["week"] = csv_f.stem
-                        dfs.append(df_w)
+                        if "score" not in df_w.columns:
+                            continue
+                        df_w["ticker"] = tkr_name
+                        # Keep last 8 data points (most recent runs)
+                        dfs.append(df_w.tail(8))
                     except Exception:
                         pass
                 if dfs:
-                    df_hist = pd.concat(dfs)
-                    df_hist = df_hist[df_hist["ticker"].isin(sel)]
+                    df_hist = pd.concat(dfs, ignore_index=True)
+                    # Use "date" column as x-axis
+                    x_col = "date" if "date" in df_hist.columns else df_hist.columns[0]
+                    df_hist = df_hist.sort_values([x_col])
                     fig_line = px.line(
-                        df_hist, x="week", y="score", color="ticker",
+                        df_hist, x=x_col, y="score", color="ticker",
                         markers=True,
                         color_discrete_sequence=px.colors.qualitative.Pastel,
                     )
