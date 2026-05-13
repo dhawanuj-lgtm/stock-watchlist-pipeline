@@ -288,23 +288,186 @@ def compute_quick_score(data: dict) -> dict:
         if s >= 4.5:  return "🟡"
         return "🔴"
 
+    # ── Bull / Bear flags ──────────────────────────────────────────────────────
+    bull_flags: list[str] = []
+    bear_flags: list[str] = []
+
+    if upside is not None and target:
+        if upside > 0.20:
+            bull_flags.append(f"Analyst target ${target:.2f} — {upside*100:.0f}% upside to consensus")
+        elif upside < -0.05:
+            bear_flags.append(f"Trading {abs(upside)*100:.0f}% above analyst consensus target")
+    if rg is not None:
+        if rg > 0.20:
+            bull_flags.append(f"Revenue growing {rg*100:.0f}% YoY — strong top-line momentum")
+        elif rg < 0:
+            bear_flags.append(f"Revenue declining {abs(rg)*100:.0f}% YoY — top-line under pressure")
+    if gm is not None:
+        if gm > 0.50:
+            bull_flags.append(f"Gross margin {gm*100:.0f}% — strong pricing power")
+        elif gm < 0.20:
+            bear_flags.append(f"Gross margin thin at {gm*100:.0f}% — limited buffer")
+    if rsi_val is not None:
+        if rsi_val < 35:
+            bull_flags.append(f"RSI {rsi_val:.0f} — oversold, potential high-conviction entry zone")
+        elif rsi_val > 72:
+            bear_flags.append(f"RSI {rsi_val:.0f} — overbought, elevated pullback risk near-term")
+    vs50 = None
+    if len(close) >= 50:
+        ma50_ = float(close.rolling(50).mean().iloc[-1])
+        last_ = float(close.iloc[-1])
+        vs50  = (last_ - ma50_) / ma50_
+        if vs50 > 0.08:
+            bull_flags.append(f"Price {vs50*100:.0f}% above 50-day MA — uptrend confirmed")
+        elif vs50 < -0.10:
+            bear_flags.append(f"Price {abs(vs50)*100:.0f}% below 50-day MA — downtrend in force")
+    vs200 = None
+    if len(close) >= 200:
+        ma200_ = float(close.rolling(200).mean().iloc[-1])
+        last_  = float(close.iloc[-1])
+        vs200  = (last_ - ma200_) / ma200_
+        if vs200 < 0:
+            bear_flags.append(f"Trading below 200-day MA — long-term trend broken")
+        elif vs200 > 0.15:
+            bull_flags.append(f"Price {vs200*100:.0f}% above 200-day MA — long-term uptrend intact")
+    if fcf is not None:
+        if fcf > 0 and rev and rev > 0:
+            fcf_m = fcf / rev
+            if fcf_m > 0.15:
+                bull_flags.append(f"FCF margin {fcf_m*100:.0f}% — high-quality cash compounder")
+        elif fcf < 0:
+            bear_flags.append("Negative free cash flow — burning cash, check runway")
+
     return {
-        "overall":  overall,
-        "light":    light(overall),
-        "factors":  factors,
-        "price":    price,
-        "upside":   upside,
-        "rsi":      rsi_val,
-        "rec":      rec,
-        "pe":       pe,
-        "peg":      peg,
-        "gm":       gm,
-        "om":       om,
-        "rg":       rg,
-        "eg":       eg,
-        "fcf":      fcf,
-        "rev":      rev,
+        "overall":    overall,
+        "light":      light(overall),
+        "factors":    factors,
+        "price":      price,
+        "upside":     upside,
+        "rsi":        rsi_val,
+        "vs50":       vs50,
+        "vs200":      vs200,
+        "rec":        rec,
+        "pe":         pe,
+        "peg":        peg,
+        "gm":         gm,
+        "om":         om,
+        "rg":         rg,
+        "eg":         eg,
+        "fcf":        fcf,
+        "rev":        rev,
+        "bull_flags": bull_flags[:4],
+        "bear_flags": bear_flags[:4],
     }
+
+
+# ── Signal / situation / action helpers ───────────────────────────────────────
+
+def _signal_info(overall: float) -> tuple[str, str]:
+    """Returns (label, hex_color)."""
+    if overall >= 8.5: return "STRONG BUY",   "#16a34a"
+    if overall >= 7.5: return "BUY",           "#22c55e"
+    if overall >= 6.5: return "WATCH / ADD",   "#22c55e"
+    if overall >= 5.5: return "HOLD",          "#eab308"
+    if overall >= 4.5: return "WATCH / TRIM",  "#f97316"
+    if overall >= 3.5: return "REDUCE",        "#ef4444"
+    return "SELL / EXIT",                       "#dc2626"
+
+
+def _situation_text(overall: float, rsi, vs50) -> str:
+    if overall >= 7.5:
+        if rsi and rsi > 70:
+            return "Strong conviction but technically overbought. Wait for pullback before adding."
+        if rsi and rsi < 35:
+            return "High-conviction setup at an oversold entry point. Strong risk/reward."
+        return "Fundamentals and technicals aligned. High-conviction setup."
+    if overall >= 6.5:
+        if vs50 and vs50 > 0:
+            return "Developing thesis with positive momentum. Small position or watchlist candidate."
+        return "Technicals improving but thesis still developing. Small entry or keep on watchlist."
+    if overall >= 5.5:
+        return "Mixed signals. Hold existing position; avoid adding until clarity improves."
+    if overall >= 4.5:
+        return "Below conviction threshold. Review position size or await fundamental improvement."
+    return "Weak fundamentals. Consider reducing exposure or exiting on bounce."
+
+
+def _action_text(overall: float, upside, vs50) -> str:
+    if overall >= 7.5:
+        dip = f" Add on any dip toward 50-day MA." if (vs50 and vs50 > 0.05) else ""
+        return f"Build or hold full position.{dip}"
+    if overall >= 6.5:
+        up_s = f" {upside*100:.0f}% analyst upside remaining." if upside and upside > 0.10 else ""
+        return f"Open or add a modest position.{up_s} Set stop at recent swing low."
+    if overall >= 5.5:
+        return "Hold current allocation. No new buys until score improves to 7+."
+    if overall >= 4.5:
+        return "Below conviction threshold. Review position size or await fundamental improvement."
+    return "Consider trimming on any bounce toward 50-day MA. Protect capital."
+
+
+def _insight_text(overall: float, rsi, vs50, upside, signal: str) -> str:
+    parts = []
+    if rsi and rsi < 35:
+        parts.append(f"RSI {rsi:.0f} — oversold entry zone")
+    elif rsi and rsi > 70:
+        parts.append(f"RSI {rsi:.0f} — overbought near-term")
+    if vs50 is not None:
+        if vs50 > 0.05:
+            parts.append(f"price {vs50*100:.0f}% above 50MA")
+        elif vs50 < -0.05:
+            parts.append(f"price {abs(vs50)*100:.0f}% below 50MA — watch for support")
+    if upside and upside > 0.15:
+        parts.append(f"{upside*100:.0f}% analyst upside remaining")
+    if parts:
+        return f"Signal: {signal}. " + " · ".join(p.capitalize() for p in parts) + "."
+    return f"Score {overall}/10. No strong action trigger — continue monitoring per plan."
+
+
+def _pill(label: str, color: str, bg: str) -> str:
+    return (f'<span style="background:{bg};color:{color};font-size:10px;'
+            f'padding:2px 8px;border-radius:10px;font-weight:600;">{label}</span>')
+
+
+def _rsi_pill(rsi) -> str:
+    if rsi is None: return ""
+    if rsi < 35:  return _pill("oversold", "#86efac", "#14532d")
+    if rsi < 45:  return _pill("near-oversold", "#fde68a", "#78350f")
+    if rsi < 65:  return _pill("neutral", "#93c5fd", "#1e3a5f")
+    if rsi < 75:  return _pill("heated", "#fde68a", "#78350f")
+    return _pill("overbought", "#fca5a5", "#450a0a")
+
+
+def _margin_pill(val, low=0.20, high=0.45) -> str:
+    if val is None: return ""
+    if val > high:  return _pill("strong", "#86efac", "#14532d")
+    if val > low:   return _pill("ok", "#fde68a", "#78350f")
+    return _pill("thin", "#fca5a5", "#450a0a")
+
+
+def _short_pill(val) -> str:
+    if val is None: return ""
+    pct = val * 100
+    if pct > 20:   return _pill("squeeze", "#c4b5fd", "#2e1065")
+    if pct > 10:   return _pill("watch", "#fde68a", "#78350f")
+    if pct > 5:    return _pill("moderate", "#93c5fd", "#1e3a5f")
+    return _pill("low", "#86efac", "#14532d")
+
+
+def _inst_pill(val) -> str:
+    if val is None: return ""
+    pct = val * 100
+    if pct > 80:   return _pill("crowded", "#fca5a5", "#450a0a")
+    if pct > 50:   return _pill("well-held", "#86efac", "#14532d")
+    if pct > 30:   return _pill("moderate", "#fde68a", "#78350f")
+    return _pill("low", "#fca5a5", "#450a0a")
+
+
+def _de_pill(val) -> str:
+    if val is None: return ""
+    if val < 50:   return _pill("lean", "#86efac", "#14532d")
+    if val < 150:  return _pill("moderate", "#fde68a", "#78350f")
+    return _pill("leveraged", "#fca5a5", "#450a0a")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -808,51 +971,256 @@ def tab_analyze(manifest: dict):
         hist  = live["hist"]
         score = compute_quick_score(live)
 
-        overall_color = GREEN if score["overall"] >= 7 else (YELLOW if score["overall"] >= 4.5 else RED)
-        price  = score.get("price") or 0
-        name   = info.get("shortName") or info.get("longName") or tkr
-        sector = info.get("sector") or "—"
+        overall     = score["overall"]
+        overall_color = GREEN if overall >= 7 else (YELLOW if overall >= 4.5 else RED)
+        price       = score.get("price") or 0
+        name        = info.get("shortName") or info.get("longName") or tkr
+        sector      = info.get("sector") or "—"
+        industry    = info.get("industry") or ""
+        upside      = score.get("upside")
+        rsi_val     = score.get("rsi")
+        vs50        = score.get("vs50")
+        factors     = score["factors"]
+        sig_label, sig_color = _signal_info(overall)
+        rec         = score.get("rec")
+        rec_map     = {1: "Strong Buy", 2: "Buy", 3: "Hold", 4: "Sell", 5: "Strong Sell"}
+        rec_label   = rec_map.get(int(round(rec)), "Hold") if rec else "Hold"
+        target      = _sf(info.get("targetMeanPrice"))
+        earn_date   = info.get("earningsDate") or info.get("earningTimestamp")
+        earn_str    = ""
+        if earn_date:
+            try:
+                if isinstance(earn_date, (int, float)):
+                    earn_str = datetime.fromtimestamp(int(earn_date)).strftime("%Y-%m-%d")
+                else:
+                    earn_str = str(earn_date)[:10]
+            except Exception:
+                pass
 
-        with st.expander(
-            f"**{tkr}** — {name} &nbsp; | &nbsp; Score: {score['overall']:.1f} {score['light']} &nbsp; | &nbsp; ${price:.2f}",
-            expanded=True,
-        ):
-            # ── Top metrics ────────────────────────────────────────────────────
-            c1, c2, c3, c4, c5 = st.columns(5)
-            with c1:
-                st.metric("Price", f"${price:.2f}" if price else "—")
-            with c2:
-                upside = score.get("upside")
-                target = _sf(info.get("targetMeanPrice"))
-                st.metric("Analyst Target",
-                          f"${target:.2f}" if target else "—",
-                          f"{upside*100:+.1f}%" if upside is not None else "")
-            with c3:
-                rsi_disp = score.get("rsi")
-                st.metric("RSI (14)", f"{rsi_disp:.0f}" if rsi_disp is not None else "—")
-            with c4:
-                pe = score.get("pe")
-                st.metric("Fwd P/E", f"{pe:.1f}x" if pe else "—")
-            with c5:
-                rec_map = {1: "Strong Buy", 2: "Buy", 3: "Hold", 4: "Sell", 5: "Strong Sell"}
-                rec = score.get("rec")
-                rec_label = rec_map.get(int(round(rec)), "—") if rec else "—"
-                st.metric("Analyst Rec", rec_label)
+        with st.expander("", expanded=True):
 
-            # ── Gauge + Radar + Detail ─────────────────────────────────────────
-            col_gauge, col_radar, col_detail = st.columns([1, 1, 1])
+            # ══ HEADER CARD ════════════════════════════════════════════════════
+            col_info, col_score, col_action = st.columns([2, 1.2, 1.2])
+
+            with col_info:
+                st.markdown(
+                    f"<div style='margin-bottom:4px;'>"
+                    f"<span style='font-size:24px;font-weight:800;color:#f1f5f9;'>{tkr}</span>"
+                    f"&nbsp;&nbsp;<span style='font-size:15px;color:#94a3b8;'>{name}</span>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+                pills = " · ".join(p for p in [sector, industry] if p and p != "—")
+                if pills:
+                    st.markdown(
+                        f'<span style="background:#1e293b;color:#94a3b8;font-size:12px;'
+                        f'padding:3px 10px;border-radius:12px;">{pills}</span>',
+                        unsafe_allow_html=True,
+                    )
+                st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+                sig_btn = (
+                    f'<span style="background:{sig_color};color:#0f172a;font-size:12px;'
+                    f'font-weight:700;padding:4px 12px;border-radius:6px;">{sig_label}</span>'
+                )
+                earn_badge = (
+                    f'&nbsp; → &nbsp;<span style="color:#94a3b8;font-size:12px;">'
+                    f'Earnings {earn_str}</span>' if earn_str else ""
+                )
+                st.markdown(sig_btn + earn_badge, unsafe_allow_html=True)
+
+            with col_score:
+                score_c = GREEN if overall >= 7 else (YELLOW if overall >= 4.5 else RED)
+                st.markdown(
+                    f"""<div style="background:#0f2a1a;border:1px solid {score_c};
+                        border-radius:10px;padding:12px 16px;">
+                      <div style="font-size:32px;font-weight:800;color:{score_c};">{overall}</div>
+                      <div style="font-size:11px;color:#86efac;font-weight:700;margin:2px 0;">
+                        {sig_label}
+                      </div>
+                      <div style="font-size:10px;color:#4ade80;">
+                        {_pct_fmt(upside)} analyst upside
+                      </div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+
+            with col_action:
+                st.markdown(
+                    f"""<div style="background:#1a1535;border:1px solid #4f46e5;
+                        border-radius:10px;padding:12px 16px;">
+                      <div style="font-size:14px;font-weight:700;color:#a78bfa;">
+                        {rec_label}
+                      </div>
+                      <div style="font-size:10px;color:#6d28d9;margin-top:4px;">
+                        {_fmt_large(_sf(info.get('marketCap')))} mkt cap
+                      </div>
+                      <div style="font-size:10px;color:#7c3aed;margin-top:2px;">
+                        {int(round(rec*10))/10 if rec else '—'} analyst consensus
+                      </div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown("<div style='height:4px;'></div>", unsafe_allow_html=True)
+
+            # ══ THESIS ════════════════════════════════════════════════════════
+            thesis = generate_ai_thesis(tkr, score)
+            if not thesis:
+                # Rule-based fallback thesis
+                gm_s  = f"gross margin {score['gm']*100:.0f}%" if score.get("gm") else ""
+                rg_s  = f"revenue growing {score['rg']*100:.0f}% YoY" if score.get("rg") else ""
+                thesis = (
+                    f"Score {overall}/10. "
+                    + " · ".join(x for x in [rg_s, gm_s] if x)
+                    + f". Analyst rating: {rec_label}."
+                )
+            st.markdown(
+                f"""<div style="border-left:3px solid #eab308;background:#1c1a0a;
+                    border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;">
+                  <div style="font-size:10px;color:#eab308;font-weight:700;
+                      letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;">
+                    THESIS
+                  </div>
+                  <div style="color:#fef9c3;font-size:14px;line-height:1.6;">{thesis}</div>
+                </div>""",
+                unsafe_allow_html=True,
+            )
+
+            # ══ SITUATION | ACTION ════════════════════════════════════════════
+            col_sit, col_act = st.columns(2)
+            with col_sit:
+                st.markdown(
+                    f"""<div style="background:#0c1a2e;border:1px solid #1e3a5f;
+                        border-radius:8px;padding:12px 14px;min-height:90px;">
+                      <div style="font-size:10px;color:#60a5fa;font-weight:700;
+                          letter-spacing:.1em;margin-bottom:6px;">SITUATION</div>
+                      <div style="color:#93c5fd;font-size:13px;line-height:1.5;">
+                        {_situation_text(overall, rsi_val, vs50)}
+                      </div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+            with col_act:
+                st.markdown(
+                    f"""<div style="background:#1a0c2e;border:1px solid #3b1f6e;
+                        border-radius:8px;padding:12px 14px;min-height:90px;">
+                      <div style="font-size:10px;color:#a78bfa;font-weight:700;
+                          letter-spacing:.1em;margin-bottom:6px;">ACTION</div>
+                      <div style="color:#c4b5fd;font-size:13px;line-height:1.5;">
+                        {_action_text(overall, upside, vs50)}
+                      </div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+
+            # ══ INSIGHT BAR ═══════════════════════════════════════════════════
+            insight = _insight_text(overall, rsi_val, vs50, upside, sig_label)
+            st.markdown(
+                f"""<div style="background:#1c1700;border-left:3px solid #eab308;
+                    padding:10px 14px;border-radius:0 6px 6px 0;margin:10px 0;">
+                  <span style="font-size:10px;color:#eab308;font-weight:700;
+                      text-transform:uppercase;letter-spacing:.08em;">INSIGHT &nbsp;</span>
+                  <span style="color:#fef08a;font-size:13px;">{insight}</span>
+                </div>""",
+                unsafe_allow_html=True,
+            )
+
+            # ══ METRICS STRIP ═════════════════════════════════════════════════
+            _gm      = score.get("gm")
+            _om      = score.get("om")
+            _de      = _sf(info.get("debtToEquity"))
+            _si      = _sf(info.get("shortPercentOfFloat"))
+            _io      = _sf(info.get("institutionPercentHeld")) or _sf(info.get("heldPercentInstitutions"))
+            _chg     = _sf(info.get("regularMarketChangePercent")) or _sf(info.get("regularMarketChange"))
+            chg_s    = f'<span style="color:{"#22c55e" if (_chg or 0)>=0 else "#ef4444"};">{_chg*100:+.2f}%</span>' if _chg else ""
+            price_s  = f'<b style="color:#f1f5f9;font-size:16px;">${price:.2f}</b> {chg_s}'
+            rsi_s    = f'RSI <b>{rsi_val:.0f}</b> {_rsi_pill(rsi_val)}' if rsi_val else ""
+            gm_s     = f'Gross Margin <b>{_gm*100:.1f}%</b> {_margin_pill(_gm)}' if _gm else ""
+            om_s     = f'Op Margin <b>{_om*100:.1f}%</b> {_margin_pill(_om, 0.05, 0.20)}' if _om else ""
+            si_s     = f'Short Float <b>{_si*100:.1f}%</b> {_short_pill(_si)}' if _si else ""
+            io_s     = f'Inst Own <b>{_io*100:.0f}%</b> {_inst_pill(_io)}' if _io else ""
+            de_s     = f'D/E <b>{_de:.0f}%</b> {_de_pill(_de)}' if _de is not None else ""
+            tgt_s    = (f'Analyst Tgt <b>${target:.0f}</b> '
+                        f'<b style="color:{"#22c55e" if (upside or 0)>=0 else "#ef4444"};">'
+                        f'{upside*100:+.0f}%</b>') if target and upside is not None else ""
+            earn_s   = f'Earnings <b>{earn_str}</b>' if earn_str else ""
+            strip    = " &nbsp;|&nbsp; ".join(x for x in
+                       [price_s, rsi_s, gm_s, om_s, si_s, io_s, de_s, tgt_s, earn_s] if x)
+            st.markdown(
+                f'<div style="background:#0f172a;border:1px solid #1e293b;border-radius:8px;'
+                f'padding:10px 14px;font-size:12px;color:#94a3b8;margin:10px 0;'
+                f'line-height:2.2;">{strip}</div>',
+                unsafe_allow_html=True,
+            )
+
+            # ══ CATEGORY BREAKDOWN | KEY SIGNALS ═════════════════════════════
+            col_cats, col_flags = st.columns([1, 1.4])
+
+            with col_cats:
+                st.markdown(
+                    '<div style="font-size:10px;color:#64748b;font-weight:700;'
+                    'letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">'
+                    'FACTOR BREAKDOWN</div>',
+                    unsafe_allow_html=True,
+                )
+                for fname, fscore in factors.items():
+                    fc = GREEN if fscore >= 7 else (YELLOW if fscore >= 4.5 else RED)
+                    bar_w = int(fscore * 10)
+                    st.markdown(
+                        f"""<div style="display:flex;align-items:center;
+                            margin-bottom:6px;gap:10px;">
+                          <span style="color:#94a3b8;font-size:12px;width:80px;">{fname}</span>
+                          <div style="flex:1;background:#1e293b;border-radius:4px;height:6px;">
+                            <div style="width:{bar_w}%;background:{fc};
+                                border-radius:4px;height:6px;"></div>
+                          </div>
+                          <span style="color:{fc};font-size:13px;font-weight:700;
+                              width:32px;text-align:right;">{fscore:.1f}</span>
+                        </div>""",
+                        unsafe_allow_html=True,
+                    )
+
+            with col_flags:
+                st.markdown(
+                    '<div style="font-size:10px;color:#64748b;font-weight:700;'
+                    'letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px;">'
+                    'KEY SIGNALS</div>',
+                    unsafe_allow_html=True,
+                )
+                for flag in score.get("bull_flags", []):
+                    st.markdown(
+                        f'<div style="background:#052e16;border:1px solid #166534;'
+                        f'border-radius:6px;padding:6px 10px;margin-bottom:5px;'
+                        f'font-size:12px;color:#86efac;">▲ {flag}</div>',
+                        unsafe_allow_html=True,
+                    )
+                for flag in score.get("bear_flags", []):
+                    st.markdown(
+                        f'<div style="background:#450a0a;border:1px solid #7f1d1d;'
+                        f'border-radius:6px;padding:6px 10px;margin-bottom:5px;'
+                        f'font-size:12px;color:#fca5a5;">▼ {flag}</div>',
+                        unsafe_allow_html=True,
+                    )
+                if not score.get("bull_flags") and not score.get("bear_flags"):
+                    st.caption("No strong signals detected.")
+
+            st.markdown("---")
+
+            # ══ GAUGE + RADAR (kept — user likes them) ════════════════════════
+            col_gauge, col_radar = st.columns(2)
 
             with col_gauge:
+                st.caption("Score Gauge")
                 fig_gauge = go.Figure(go.Indicator(
                     mode="gauge+number",
-                    value=score["overall"],
+                    value=overall,
                     domain={"x": [0, 1], "y": [0, 1]},
                     title={"text": "Overall Score", "font": {"size": 13, "color": "#94a3b8"}},
                     number={"font": {"size": 40, "color": "#f1f5f9"}, "suffix": "/10"},
                     gauge={
                         "axis": {
                             "range": [0, 10],
-                            "tickvals": [0, 2, 4, 5, 7, 8, 10],
+                            "tickvals": [0, 2, 4.5, 7, 10],
                             "tickcolor": "#475569",
                             "tickfont": {"size": 9, "color": "#64748b"},
                         },
@@ -861,27 +1229,27 @@ def tab_analyze(manifest: dict):
                         "borderwidth": 1,
                         "bordercolor": "#334155",
                         "steps": [
-                            {"range": [0, 4.5], "color": "rgba(239,68,68,0.12)"},
-                            {"range": [4.5, 7.0], "color": "rgba(234,179,8,0.12)"},
+                            {"range": [0, 4.5],  "color": "rgba(239,68,68,0.12)"},
+                            {"range": [4.5, 7.0],"color": "rgba(234,179,8,0.12)"},
                             {"range": [7.0, 10], "color": "rgba(34,197,94,0.12)"},
                         ],
                         "threshold": {
                             "line": {"color": overall_color, "width": 4},
                             "thickness": 0.8,
-                            "value": score["overall"],
+                            "value": overall,
                         },
                     },
                 ))
                 fig_gauge.update_layout(
                     paper_bgcolor="rgba(0,0,0,0)",
                     font_color="#94a3b8",
-                    height=230,
+                    height=220,
                     margin=dict(l=15, r=15, t=40, b=10),
                 )
                 st.plotly_chart(fig_gauge, use_container_width=True)
 
             with col_radar:
-                factors = score["factors"]
+                st.caption("Factor Radar")
                 _radar_fills = {
                     GREEN:  "rgba(34,197,94,0.2)",
                     YELLOW: "rgba(234,179,8,0.2)",
@@ -902,47 +1270,14 @@ def tab_analyze(manifest: dict):
                     paper_bgcolor="rgba(0,0,0,0)",
                     font_color="#94a3b8",
                     margin=dict(l=20, r=20, t=30, b=20),
-                    height=230,
+                    height=220,
                     showlegend=False,
                 )
                 st.plotly_chart(fig_radar, use_container_width=True)
 
-            with col_detail:
-                st.markdown(f"**Sector:** {sector}")
-                st.markdown(f"**Market Cap:** {_fmt_large(_sf(info.get('marketCap')))}")
-                _52lo = _sf(info.get("fiftyTwoWeekLow"))
-                _52hi = _sf(info.get("fiftyTwoWeekHigh"))
-                _52_str = (f"${_52lo:.2f} – ${_52hi:.2f}" if (_52lo and _52hi) else "—")
-                st.markdown(f"**52w Range:** {_52_str}")
-                st.markdown("---")
-                st.markdown("**Factor Breakdown:**")
-                for fname, fscore in factors.items():
-                    light = "🟢" if fscore >= 7 else ("🟡" if fscore >= 4.5 else "🔴")
-                    bar = "█" * int(fscore) + "░" * (10 - int(fscore))
-                    st.markdown(
-                        f"{light} **{fname}**: {fscore:.1f} &nbsp;"
-                        f"<span style='color:#334155;font-size:10px;'>{bar}</span>",
-                        unsafe_allow_html=True,
-                    )
-
-            # ── AI Thesis ──────────────────────────────────────────────────────
-            thesis = generate_ai_thesis(tkr, score)
-            if thesis:
-                st.markdown(
-                    f"""<div style="background:linear-gradient(135deg,#1e1b4b,#1e293b);
-                        border:1px solid #4f46e5;border-radius:10px;padding:14px 18px;
-                        margin:12px 0;">
-                      <div style="font-size:11px;color:#818cf8;font-weight:600;
-                          letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;">
-                        🤖 AI Thesis
-                      </div>
-                      <div style="color:#e2e8f0;font-size:14px;line-height:1.6;">{thesis}</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
-
-            # ── Price chart ────────────────────────────────────────────────────
+            # ══ PRICE + MA CHART ══════════════════════════════════════════════
             if not hist.empty:
+                st.caption("Price History")
                 fig_price = go.Figure()
                 fig_price.add_trace(go.Scatter(
                     x=hist.index, y=hist["Close"],
@@ -951,16 +1286,14 @@ def tab_analyze(manifest: dict):
                 ))
                 if len(hist) >= 50:
                     fig_price.add_trace(go.Scatter(
-                        x=hist.index,
-                        y=hist["Close"].rolling(50).mean(),
-                        mode="lines", name="50-day MA",
+                        x=hist.index, y=hist["Close"].rolling(50).mean(),
+                        mode="lines", name="50d MA",
                         line=dict(color="#3b82f6", width=1, dash="dash"),
                     ))
                 if len(hist) >= 200:
                     fig_price.add_trace(go.Scatter(
-                        x=hist.index,
-                        y=hist["Close"].rolling(200).mean(),
-                        mode="lines", name="200-day MA",
+                        x=hist.index, y=hist["Close"].rolling(200).mean(),
+                        mode="lines", name="200d MA",
                         line=dict(color="#f59e0b", width=1, dash="dot"),
                     ))
                 fig_price.update_layout(
@@ -969,48 +1302,28 @@ def tab_analyze(manifest: dict):
                     font_color="#94a3b8",
                     xaxis=dict(showgrid=False),
                     yaxis=dict(gridcolor="#334155"),
-                    legend=dict(orientation="h", y=1.1),
+                    legend=dict(orientation="h", y=1.08),
                     margin=dict(l=0, r=0, t=30, b=0),
-                    height=280,
+                    height=260,
                 )
                 st.plotly_chart(fig_price, use_container_width=True)
 
-            # ── Volume ─────────────────────────────────────────────────────────
+            # ── Volume line ────────────────────────────────────────────────────
             if not hist.empty and "Volume" in hist.columns:
-                avg_vol = hist["Volume"].mean()
+                avg_vol  = hist["Volume"].mean()
                 last_vol = hist["Volume"].iloc[-1]
                 vol_ratio = last_vol / avg_vol if avg_vol > 0 else 1
                 vol_color = GREEN if vol_ratio > 1.2 else (RED if vol_ratio < 0.6 else YELLOW)
                 try:
                     st.markdown(
                         f"**Volume:** {_fmt_large(int(last_vol))} "
-                        f"<span style='color:{vol_color};'>({vol_ratio:.1f}x avg)</span>",
+                        f'<span style="color:{vol_color};">({vol_ratio:.1f}x avg)</span>',
                         unsafe_allow_html=True,
                     )
                 except Exception:
                     pass
 
-            # ── Key financials ─────────────────────────────────────────────────
-            st.markdown("**Key Financials:**")
-            fin_cols = st.columns(4)
-            _de   = _sf(info.get("debtToEquity"))
-            _beta = _sf(info.get("beta"))
-            _sf_f = _sf(info.get("shortPercentOfFloat"))
-            fin_items = [
-                ("Rev Growth",    _pct_fmt(_sf(info.get("revenueGrowth")))),
-                ("Gross Margin",  _pct_fmt(_sf(info.get("grossMargins")))),
-                ("Op Margin",     _pct_fmt(_sf(info.get("operatingMargins")))),
-                ("FCF",           _fmt_large(_sf(info.get("freeCashflow")))),
-                ("Total Revenue", _fmt_large(_sf(info.get("totalRevenue")))),
-                ("D/E Ratio",     f"{_de:.0f}%" if _de is not None else "—"),
-                ("Beta",          f"{_beta:.2f}" if _beta is not None else "—"),
-                ("Short Float",   f"{_sf_f*100:.1f}%" if _sf_f is not None else "—"),
-            ]
-            for i, (label, val) in enumerate(fin_items):
-                with fin_cols[i % 4]:
-                    st.metric(label, val)
-
-            # ── Analyst coverage ────────────────────────────────────────────────
+            # ── Analyst coverage ───────────────────────────────────────────────
             n_analysts = _sf(info.get("numberOfAnalystOpinions"))
             if n_analysts:
                 st.caption(f"Based on {int(n_analysts)} analyst opinions.")
