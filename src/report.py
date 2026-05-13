@@ -182,7 +182,8 @@ def generate_report(
   .cat-flag-bull::before {{ content: "▲"; margin-right: .3rem; font-size: .65rem; }}
   .cat-flag-bear::before {{ content: "▼"; margin-right: .3rem; font-size: .65rem; }}
   .cat-dot  {{ font-size: .75rem; flex-shrink: 0; }}
-  .cat-name {{ flex: 1; color: #c0c0d8; }}
+  .cat-name {{ flex: 0 0 128px; color: #c0c0d8; white-space:nowrap;
+               overflow:hidden; text-overflow:ellipsis; }}
   .cat-score {{ font-weight: 700; min-width: 28px; text-align: right; font-size: .85rem; }}
   .cat-bar-wrap {{ flex: 1; height: 5px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }}
   .cat-bar {{ height: 100%; border-radius: 3px; }}
@@ -365,6 +366,18 @@ def generate_report(
   /* Key signals right column in dark body */
   .dark-signals {{ border-left:1px solid rgba(255,255,255,.07); padding:.9rem 1.25rem;
                    display:flex; flex-direction:column; }}
+  /* Dark card header */
+  .card-hdr-dark {{ background: #0f0f24 !important; border-bottom:1px solid rgba(255,255,255,.07); }}
+  .card-hdr-dark .ticker-name {{ color: #e0e0f0; }}
+  .card-hdr-dark .ticker-sub  {{ color: #8080a8; }}
+  .card-hdr-dark .arch-tag    {{ border-color:rgba(255,255,255,.12); color:#8080a8;
+                                  background:rgba(255,255,255,.04); }}
+  .card-hdr-dark .flip-badge  {{ background:rgba(255,193,7,.15); color:#ffc107;
+                                  border-color:rgba(255,193,7,.3); }}
+  .card-hdr-dark .score-card-claude {{ background:#1b3224; }}
+  .card-hdr-dark .score-card-grok   {{ background:#192040; }}
+  .card-hdr-dark .scard-lbl   {{ opacity:.5; }}
+  .card-hdr-dark .scard-meta  {{ color:#8080a8 !important; }}
 </style>
 </head>
 <body>
@@ -519,10 +532,12 @@ def _compute_grok_logic(sr) -> dict:
     }
 
 
-def _situation_summary(score: float, signal: str, trend: str, arch: str) -> tuple:
+def _situation_summary(score: float, signal: str, trend: str, arch: str,
+                       price: float | None = None) -> tuple:
     """
     Returns (text, bg_color, text_color) — a plain-English action prompt
     derived from score + signal combination, with archetype-aware phrasing.
+    When price is provided, concrete dip-price targets are injected.
     """
     trend_note = ""
     if trend == "up":
@@ -530,7 +545,15 @@ def _situation_summary(score: float, signal: str, trend: str, arch: str) -> tupl
     elif trend == "down":
         trend_note = " Score declining — watch closely."
 
-    dca_phrase = "Good for adding in tranches on dips" if arch in ("mega", "largeg") else "Consider a starter position"
+    # Concrete price targets: 5% and 7% pullback from current price
+    _dip5 = f" at ${price * 0.95:.2f}" if price else ""
+    _dip7 = f" at ${price * 0.93:.2f}" if price else ""
+
+    dca_phrase = (
+        f"Good for adding in tranches on dips{_dip5}"
+        if arch in ("mega", "largeg") else
+        f"Consider a starter position{_dip7}"
+    )
 
     if score >= 7.0:
         if signal == "CONFLUENCE":
@@ -851,10 +874,25 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         ("D/E",          de_str,
          _de_hint(de),
          {"green": "lean", "yellow": "moderate", "red": "leveraged"}),
-        ("Analyst Tgt",  f'${data["analyst_target"]:.0f}' if data.get("analyst_target") else "—",
-         _upside_hint(analyst_upside),
-         {"green": "upside", "yellow": "at target", "red": "downside"}),
     ]
+
+    # Analyst target: build separately showing actual % upside/downside
+    _analyst_item_html = ""
+    if data.get("analyst_target") and analyst_upside is not None:
+        _upside_pct = analyst_upside * 100
+        _upside_tag = f"{_upside_pct:+.0f}%"
+        _upside_cls = (
+            "ms-tag-green"  if _upside_pct > 20 else
+            "ms-tag-yellow" if _upside_pct > 5  else
+            "ms-tag-red"
+        )
+        _analyst_item_html = (
+            f'<div class="ms-item">'
+            f'<span class="ms-key">Analyst Tgt</span>'
+            f'<span class="ms-val">${data["analyst_target"]:.0f}</span>'
+            f'<span class="ms-tag {_upside_cls}">{_upside_tag}</span>'
+            f'</div>'
+        )
 
     _price_area_html = ""
     if price:
@@ -886,13 +924,13 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
 
     metrics_strip_html = (
         f'<div class="metrics-strip">'
-        f'{_price_area_html}{_strip_items_html}{_earnings_item}'
+        f'{_price_area_html}{_strip_items_html}{_analyst_item_html}{_earnings_item}'
         f'</div>'
     )
 
     # ── Situation summary (score + signal → plain-English action prompt) ─────────
     situation_text, sit_bg, sit_fg = _situation_summary(
-        sr.weighted_score, sig.signal, sig.score_trend, sr.archetype
+        sr.weighted_score, sig.signal, sig.score_trend, sr.archetype, price=price
     )
     situation_html = (
         f'<div style="margin:.5rem 1.25rem .25rem;padding:.55rem .9rem;'
@@ -912,6 +950,15 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
 
     # ── Grok Logic panel ─────────────────────────────────────────────────────
     gl = _compute_grok_logic(sr)
+
+    # Inject concrete pullback price into Grok action text
+    if price and "pullback" in gl["action"].lower():
+        _dip_px = f"${price * 0.95:.2f}"
+        gl["action"] = gl["action"].replace(
+            "Add on pullbacks.", f"Add on pullbacks at {_dip_px}."
+        ).replace(
+            "add on pullbacks.", f"add on pullbacks at {_dip_px}."
+        )
 
     breakdown_html = "".join(
         f'<div class="grok-row">'
@@ -959,23 +1006,36 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
         .replace("Reduce / Sell", "Reduce")
     )
 
+    # ── Dark-palette score colors (for dark card header) ─────────────────────
+    _score_color_dark = {
+        "green":  "#7ec89e",
+        "yellow": "#ffc107",
+        "red":    "#f08888",
+        "gray":   "#9090b0",
+    }[sr.weighted_light]
+    _grok_sig_dark = {
+        "#28a745": "#7ec89e",
+        "#856404": "#ffc107",
+        "#dc3545": "#f08888",
+    }.get(gl["sig_color"], "#9090b0")
+
     # ── Score mini-cards (replace old pills) ─────────────────────────────────
     score_cards_html = f"""<div class="score-cards">
   <div class="score-card score-card-claude">
     <div class="scard-header">
-      <span class="scard-num" style="color:{score_color}">{sr.weighted_score}</span>
-      <span class="scard-lbl" style="color:{score_color}">Claude</span>
+      <span class="scard-num" style="color:{_score_color_dark}">{sr.weighted_score}</span>
+      <span class="scard-lbl" style="color:{_score_color_dark}">Claude</span>
     </div>
-    <div class="scard-signal" style="color:{score_color}">{claude_sig_text}</div>
-    <div class="scard-meta" style="color:{score_color}">{_claude_conv}</div>
+    <div class="scard-signal" style="color:{_score_color_dark}">{claude_sig_text}</div>
+    <div class="scard-meta">{_claude_conv}</div>
   </div>
   <div class="score-card score-card-grok">
     <div class="scard-header">
-      <span class="scard-num" style="color:{gl['sig_color']}">{gl['overall']}</span>
-      <span class="scard-lbl" style="color:{gl['sig_color']}">Grok</span>
+      <span class="scard-num" style="color:{_grok_sig_dark}">{gl['overall']}</span>
+      <span class="scard-lbl" style="color:{_grok_sig_dark}">Grok</span>
     </div>
-    <div class="scard-signal" style="color:{gl['sig_color']}">{grok_sig_short}</div>
-    <div class="scard-meta" style="color:#1e3a6e">{gl['confidence']}% · {gl['horizon']}</div>
+    <div class="scard-signal" style="color:{_grok_sig_dark}">{grok_sig_short}</div>
+    <div class="scard-meta">{gl['confidence']}% · {gl['horizon']}</div>
   </div>
 </div>"""
 
@@ -1056,7 +1116,7 @@ def _ticker_card(r: dict, history: list[dict] | None = None) -> str:
 </div>"""
 
     return f"""<div class="card" id="{r['ticker']}" style="scroll-margin-top:1rem;border-left:4px solid {score_border}">
-  <div class="card-hdr" style="flex-wrap:wrap;gap:.5rem;align-items:flex-start;background:linear-gradient(135deg,#fafbfc 0%,#fff 60%)">
+  <div class="card-hdr card-hdr-dark" style="flex-wrap:wrap;gap:.5rem;align-items:flex-start">
     <div style="min-width:0;flex:1">
       <div class="ticker-name">{r['ticker']} &nbsp;<span style="font-weight:400;font-size:.9rem;color:#6c757d">{r.get('name','')}</span></div>
       <div style="display:flex;align-items:center;gap:.4rem;margin-top:.3rem;flex-wrap:wrap">
