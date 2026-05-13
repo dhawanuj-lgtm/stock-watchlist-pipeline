@@ -1573,6 +1573,29 @@ function triggerLiveFetch() {
   fetchLiveData(ticker);
 }
 
+// Try multiple CORS proxies until one returns valid JSON
+async function yahooFetch(ticker) {
+  const YQ   = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}`;
+  const mods = 'price,summaryDetail,financialData,defaultKeyStatistics,assetProfile';
+  const target = `${YQ}?modules=${mods}&corsDomain=finance.yahoo.com`;
+  const PROXIES = [
+    u => `https://corsproxy.io/?url=${encodeURIComponent(u)}`,
+    u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+    u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+  ];
+  for (const mkProxy of PROXIES) {
+    try {
+      const res  = await fetch(mkProxy(target), { signal: AbortSignal.timeout(9000) });
+      const text = await res.text();
+      if (!text.trim().startsWith('{')) continue; // got HTML error page, try next proxy
+      const json = JSON.parse(text);
+      const data = json?.quoteSummary?.result?.[0];
+      if (data) return data;
+    } catch {}
+  }
+  throw new Error(`All data sources failed for "${ticker}". Check the ticker is correct (e.g. CRDO not CDRO).`);
+}
+
 async function fetchLiveData(ticker) {
   const statusEl  = document.getElementById('live-status');
   const resultEl  = document.getElementById('live-result');
@@ -1580,15 +1603,10 @@ async function fetchLiveData(ticker) {
   resultEl.innerHTML    = '';
 
   try {
-    // ── Source 1: Yahoo Finance (no key, CORS proxy) ──────────────
+    // ── Source 1: Yahoo Finance (no key, 3-proxy fallback chain) ──
     statusEl.textContent = 'Yahoo Finance…';
-    const PROXY = 'https://corsproxy.io/?url=';
-    const YQ    = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${ticker}`;
-    const mods  = 'price,summaryDetail,financialData,defaultKeyStatistics,assetProfile,earningsTrend';
-    const yRes  = await fetch(PROXY + encodeURIComponent(`${YQ}?modules=${mods}&corsDomain=finance.yahoo.com`));
-    const yJson = await yRes.json();
-    const yData = yJson?.quoteSummary?.result?.[0];
-    if (!yData) throw new Error('Yahoo Finance returned no data for ' + ticker);
+    const yData = await yahooFetch(ticker);
+    if (!yData) throw new Error(`No data found for "${ticker}". Verify the ticker symbol.`);
 
     const price = yData.price            || {};
     const sd    = yData.summaryDetail    || {};
