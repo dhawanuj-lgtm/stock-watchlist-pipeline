@@ -1,25 +1,49 @@
 {
-  "generated_at": "2026-08-10",
+  "generated_at": "2026-08-17",
   "lookback_days": 60,
   "benchmark": "SPY",
   "outperformance_threshold": 2.0,
   "spy_return_pct": null,
   "buy_signals": {
-    "count": 43,
+    "count": 45,
     "hit_rate_pct": null,
-    "avg_return_pct": -5.22,
-    "avg_excess_pct": -5.22,
+    "avg_return_pct": -2.67,
+    "avg_excess_pct": -2.67,
     "top_performers": [
+      {
+        "ticker": "PATH",
+        "date": "2026-06-15",
+        "signal": "CONFLUENCE",
+        "score_then": 6.3,
+        "price_then": 10.79,
+        "price_now": 15.74,
+        "ticker_return_pct": 45.88,
+        "spy_return_pct": null,
+        "excess_return_pct": 45.88,
+        "correct": null
+      },
       {
         "ticker": "PGY",
         "date": "2026-06-01",
         "signal": "CONFLUENCE",
         "score_then": 5.9,
         "price_then": 15.64,
-        "price_now": 21.48,
-        "ticker_return_pct": 37.31,
+        "price_now": 20.99,
+        "ticker_return_pct": 34.21,
         "spy_return_pct": null,
-        "excess_return_pct": 37.31,
+        "excess_return_pct": 34.21,
+        "correct": null
+      },
+      {
+        "ticker": "OSCR",
+        "date": "2026-06-08",
+        "signal": "CONFLUENCE",
+        "score_then": 5.9,
+        "price_then": 27.39,
+        "price_now": 31.52,
+        "ticker_return_pct": 15.1,
+        "spy_return_pct": null,
+        "excess_return_pct": 15.1,
         "correct": null
       },
       {
@@ -28,34 +52,22 @@
         "signal": "CONFLUENCE",
         "score_then": 6.3,
         "price_then": 117.96,
-        "price_now": 131.89,
-        "ticker_return_pct": 11.81,
+        "price_now": 129.41,
+        "ticker_return_pct": 9.71,
         "spy_return_pct": null,
-        "excess_return_pct": 11.81,
+        "excess_return_pct": 9.71,
         "correct": null
       },
       {
-        "ticker": "AMZN",
-        "date": "2026-05-25",
-        "signal": "SQUEEZE ON",
-        "score_then": 7.3,
-        "price_then": 266.32,
-        "price_now": 277.66,
-        "ticker_return_pct": 4.26,
-        "spy_return_pct": null,
-        "excess_return_pct": 4.26,
-        "correct": null
-      },
-      {
-        "ticker": "ACHR",
-        "date": "2026-05-25",
+        "ticker": "XYZ",
+        "date": "2026-06-15",
         "signal": "CONFLUENCE",
-        "score_then": 6.3,
-        "price_then": 6.36,
-        "price_now": 6.62,
-        "ticker_return_pct": 4.09,
+        "score_then": 6.4,
+        "price_then": 74.35,
+        "price_now": 81.0,
+        "ticker_return_pct": 8.94,
         "spy_return_pct": null,
-        "excess_return_pct": 4.09,
+        "excess_return_pct": 8.94,
         "correct": null
       },
       {
@@ -64,10 +76,10 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
@@ -76,10 +88,10 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
@@ -88,10 +100,10 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
@@ -100,10 +112,10 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
@@ -112,10 +124,10 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
@@ -124,10 +136,10 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
@@ -136,10 +148,10 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
@@ -148,55 +160,43 @@
         "signal": "SQUEEZE ON",
         "score_then": 6.9,
         "price_then": 294.8,
-        "price_now": 306.8,
-        "ticker_return_pct": 4.07,
+        "price_now": 305.18,
+        "ticker_return_pct": 3.52,
         "spy_return_pct": null,
-        "excess_return_pct": 4.07,
+        "excess_return_pct": 3.52,
         "correct": null
       },
       {
-        "ticker": "ACHR",
-        "date": "2026-05-12",
-        "signal": "CONFLUENCE",
-        "score_then": 6.3,
-        "price_then": 6.39,
-        "price_now": 6.62,
-        "ticker_return_pct": 3.6,
+        "ticker": "AAPL",
+        "date": "2026-05-18",
+        "signal": "SQUEEZE ON",
+        "score_then": 6.9,
+        "price_then": 296.77,
+        "price_now": 305.18,
+        "ticker_return_pct": 2.83,
         "spy_return_pct": null,
-        "excess_return_pct": 3.6,
+        "excess_return_pct": 2.83,
         "correct": null
       },
       {
-        "ticker": "ACHR",
-        "date": "2026-05-12",
-        "signal": "CONFLUENCE",
-        "score_then": 6.2,
-        "price_then": 6.39,
-        "price_now": 6.62,
-        "ticker_return_pct": 3.6,
+        "ticker": "AAPL",
+        "date": "2026-06-08",
+        "signal": "SQUEEZE ON",
+        "score_then": 7.0,
+        "price_then": 301.54,
+        "price_now": 305.18,
+        "ticker_return_pct": 1.21,
         "spy_return_pct": null,
-        "excess_return_pct": 3.6,
-        "correct": null
-      },
-      {
-        "ticker": "ACHR",
-        "date": "2026-05-12",
-        "signal": "CONFLUENCE",
-        "score_then": 6.2,
-        "price_then": 6.39,
-        "price_now": 6.62,
-        "ticker_return_pct": 3.6,
-        "spy_return_pct": null,
-        "excess_return_pct": 3.6,
+        "excess_return_pct": 1.21,
         "correct": null
       }
     ]
   },
   "avoid_signals": {
-    "count": 125,
+    "count": 139,
     "hit_rate_pct": null,
-    "avg_return_pct": 19.85,
-    "avg_excess_pct": 19.85,
+    "avg_return_pct": 20.27,
+    "avg_excess_pct": 20.27,
     "top_avoided": [
       {
         "ticker": "CMND",
@@ -204,22 +204,22 @@
         "signal": "RISK WATCH",
         "score_then": 4.4,
         "price_then": 3.79,
-        "price_now": 1.65,
-        "ticker_return_pct": -56.46,
+        "price_now": 1.89,
+        "ticker_return_pct": -50.21,
         "spy_return_pct": null,
-        "excess_return_pct": -56.46,
+        "excess_return_pct": -50.21,
         "correct": null
       },
       {
         "ticker": "CMND",
-        "date": "2026-06-01",
+        "date": "2026-06-15",
         "signal": "RISK WATCH",
         "score_then": 4.3,
-        "price_then": 3.17,
-        "price_now": 1.65,
-        "ticker_return_pct": -47.95,
+        "price_then": 3.37,
+        "price_now": 1.89,
+        "ticker_return_pct": -44.0,
         "spy_return_pct": null,
-        "excess_return_pct": -47.95,
+        "excess_return_pct": -44.0,
         "correct": null
       },
       {
@@ -228,10 +228,10 @@
         "signal": "RISK WATCH",
         "score_then": 5.7,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       },
       {
@@ -240,10 +240,10 @@
         "signal": "RISK WATCH",
         "score_then": 5.7,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       },
       {
@@ -252,10 +252,10 @@
         "signal": "RISK WATCH",
         "score_then": 5.7,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       },
       {
@@ -264,10 +264,10 @@
         "signal": "RISK WATCH",
         "score_then": 5.7,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       },
       {
@@ -276,10 +276,10 @@
         "signal": "RISK WATCH",
         "score_then": 5.7,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       },
       {
@@ -288,10 +288,10 @@
         "signal": "RISK WATCH",
         "score_then": 5.8,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       },
       {
@@ -300,10 +300,10 @@
         "signal": "RISK WATCH",
         "score_then": 5.7,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       },
       {
@@ -312,13 +312,13 @@
         "signal": "RISK WATCH",
         "score_then": 5.7,
         "price_then": 8.76,
-        "price_now": 5.15,
-        "ticker_return_pct": -41.2,
+        "price_now": 5.08,
+        "ticker_return_pct": -42.07,
         "spy_return_pct": null,
-        "excess_return_pct": -41.2,
+        "excess_return_pct": -42.07,
         "correct": null
       }
     ]
   },
-  "data_note": "Accuracy data is meaningful after 8+ weeks of history. Currently evaluating 43 buy signals and 125 avoid signals."
+  "data_note": "Accuracy data is meaningful after 8+ weeks of history. Currently evaluating 45 buy signals and 139 avoid signals."
 }
