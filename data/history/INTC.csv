@@ -24,3 +24,4 @@ date,score,signal,price,score_light,bull_count,bear_count
 2026-10-01,5.9,CONSOLIDATION,120.9,yellow,3,0
 2026-10-08,6.1,CONSOLIDATION,106.68,yellow,3,0
 2026-10-15,6.2,RISK WATCH,94.355,yellow,3,0
+2026-10-22,6.2,RISK WATCH,86.01,yellow,3,2
